@@ -37,7 +37,7 @@ function texture(gl,url){
 export function startOpticalWindow(id,observerId){
  const canvas=document.getElementById(id),status=document.getElementById(id+'-status');if(!canvas)return;
  const gl=canvas.getContext('webgl',{antialias:true,alpha:false})||canvas.getContext('experimental-webgl');
- if(!gl){status.textContent='WEBGL NOT AVAILABLE';return;}
+ if(!gl){status.textContent='WEBGL NOT AVAILABLE — check browser hardware acceleration';return;}
  let p,mesh;try{p=program(gl);mesh=sphereMesh(gl);}catch(e){status.textContent='SHADER ERROR: '+e.message;return;}
  gl.useProgram(p);gl.bindBuffer(gl.ARRAY_BUFFER,mesh.v);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,mesh.index);
  const attr=(name,size,offset)=>{const a=gl.getAttribLocation(p,name);gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,size,gl.FLOAT,false,20,offset);};
@@ -52,7 +52,7 @@ export function startOpticalWindow(id,observerId){
  async function read(){if(busy)return;busy=true;try{const res=await fetch('state.php?observer='+observerId,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);snapshot=await res.json();last=Date.now();}catch(e){status.textContent='TELEMETRY ERROR: '+e.message;}finally{busy=false;}}
  function render(){
   requestAnimationFrame(render);gl.viewport(0,0,canvas.width,canvas.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-  if(!snapshot)return;
+  if(!snapshot){status.textContent='WAITING FOR SPACECRAFT TELEMETRY…';return;}
   const objs=snapshot.objects||[],self=objs.find(o=>+o.id===observerId);if(!self){status.textContent='OBSERVER MISSING';return;}
   const axes=basis(self),position=[+self.x,+self.y,+self.z],items=[];
   const earthObj=objs.find(o=>+o.id===1);
@@ -69,6 +69,7 @@ export function startOpticalWindow(id,observerId){
    gl.uniform3fv(U.center,new Float32Array(item.center));gl.uniform1f(U.radius,item.radius);
    gl.drawElements(gl.TRIANGLES,mesh.count,gl.UNSIGNED_SHORT,0);
   }
+  const error=gl.getError();if(error!==gl.NO_ERROR)status.textContent='WEBGL DRAW ERROR '+error;
  }
  read();setInterval(read,1000);render();
 }
