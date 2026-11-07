@@ -40,7 +40,7 @@ $windowId='moon-window-'.bin2hex(random_bytes(5));
   ctx.strokeStyle='#6c8c7d';ctx.beginPath();ctx.moveTo(287,300);ctx.lineTo(313,300);ctx.moveTo(300,287);ctx.lineTo(300,313);ctx.stroke();
  }
  async function refresh(){try{
-  const response=await fetch('../state.php?observer='+observerId,{cache:'no-store'});
+  const response=await fetch('state.php?observer='+observerId,{cache:'no-store'});
   if(response.ok)draw(await response.json());
  }catch(e){console.warn('Window telemetry unavailable',e)}}
  refresh();setInterval(refresh,1000);
