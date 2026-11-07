@@ -6,7 +6,7 @@ if(empty($_SESSION['moon_v2_csrf']))$_SESSION['moon_v2_csrf']=bin2hex(random_byt
 if($_SERVER['REQUEST_METHOD']==='POST'){
  if(!hash_equals($_SESSION['moon_v2_csrf'],(string)($_POST['csrf']??''))){http_response_code(403);exit('Invalid form token');}
  $name=(string)($_POST['file_name']??'');
- if(!preg_match('/\A[a-z][a-z0-9_]*\.php\z/i',$name)){http_response_code(400);exit('Invalid instrument name');}
+ if(!preg_match('/\A[a-z][a-z0-9_]*\.(?:php|html)\z/i',$name)){http_response_code(400);exit('Invalid instrument name');}
  $action=(string)($_POST['action']??'');
  if($action==='paste'){
   if(!str_ends_with($name,'.html')){http_response_code(400);exit('Pasted gauges use .html names');}
