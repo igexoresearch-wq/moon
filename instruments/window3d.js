@@ -87,6 +87,13 @@ export function startOpticalWindow(canvasId,observerId){
   const {f,up}=windowBasis(self);
   camera.up.copy(up);
   camera.lookAt(f);
+  const earth=objects.find(o=>number(o,'id')===1);
+  if(earth){
+   const earthDirection=vec(earth).sub(origin).normalize();
+   const separation=THREE.MathUtils.radToDeg(Math.acos(clamp(f.dot(earthDirection),-1,1)));
+   const earthVisible=separation<45+THREE.MathUtils.radToDeg(Math.asin(clamp(number(earth,'radius_length')/Math.max(1,vec(earth).distanceTo(origin)),0,1)));
+   status.textContent='YAW '+number(self,'yaw').toFixed(1)+'° · EARTH '+separation.toFixed(0)+'° OFF-AXIS'+(earthVisible?' · IN VIEW':' · OUT OF VIEW');
+  }
  }
  async function fetchState(){
   if(requesting)return;requesting=true;
@@ -94,7 +101,7 @@ export function startOpticalWindow(canvasId,observerId){
    const response=await fetch('state.php?observer='+observerId,{cache:'no-store'});
    if(!response.ok)throw new Error('Telemetry HTTP '+response.status);
    const data=await response.json();
-   current=data;lastReceived=performance.now();status.textContent='';
+   current=data;lastReceived=performance.now();
   }catch(error){status.textContent='TELEMETRY OFFLINE';console.warn('Optical window:',error);}
   finally{requesting=false;}
  }
