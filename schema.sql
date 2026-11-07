@@ -61,6 +61,6 @@ VALUES
 (10,'Saturn V First Stage',131000,42,0,0,0,0,0,0,NULL,0,0,42)
 ON DUPLICATE KEY UPDATE name=VALUES(name);
 INSERT INTO console_instruments(console_id,file_name,pos_x,pos_y)
-VALUES('cmc','window.php',20,20)
+VALUES('cmc','window.php',20,60),('lmc','window.php',20,60)
 ON DUPLICATE KEY UPDATE file_name=VALUES(file_name);
 INSERT INTO sim_clock(id,tick) VALUES(1,0) ON DUPLICATE KEY UPDATE id=id;
