@@ -34,6 +34,25 @@ function texture(gl,url){
  img.onload=()=>{try{gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);result.ready=true;}catch(e){result.failed=true;}};
  img.onerror=()=>result.failed=true;img.src=url;return result;
 }
+// Deterministic, offline fallback. Not NASA imagery: simplified green/brown
+// land and blue oceans so an image/network failure never leaves a blank globe.
+function earthFallback(gl,result){
+ const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=512;
+ const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+ ctx.fillStyle='#245b95';ctx.fillRect(0,0,w,h);
+ const land=[[[.07,.30],[.16,.17],[.27,.19],[.32,.33],[.26,.44],[.23,.60],[.17,.57],[.12,.40]],
+ [[.26,.55],[.33,.58],[.36,.73],[.31,.95],[.28,.79]],
+ [[.45,.30],[.54,.18],[.70,.21],[.79,.35],[.72,.49],[.59,.56],[.51,.47]],
+ [[.50,.49],[.59,.52],[.60,.79],[.55,.93],[.50,.74]],
+ [[.79,.70],[.88,.69],[.93,.83],[.86,.91]]];
+ ctx.fillStyle='#638955';
+ for(const poly of land){ctx.beginPath();poly.forEach(([x,y],i)=>i?ctx.lineTo(x*w,y*h):ctx.moveTo(x*w,y*h));ctx.closePath();ctx.fill();}
+ ctx.fillStyle='#e0e4da';ctx.fillRect(0,0,w,38);ctx.fillRect(0,h-36,w,36);
+ gl.bindTexture(gl.TEXTURE_2D,result.t);
+ gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+ gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,canvas);
+ result.ready=true;
+}
 export function startOpticalWindow(id,observerId){
  const canvas=document.getElementById(id),status=document.getElementById(id+'-status');if(!canvas)return;
  const gl=canvas.getContext('webgl',{antialias:true,alpha:false})||canvas.getContext('experimental-webgl');
@@ -45,8 +64,9 @@ export function startOpticalWindow(id,observerId){
  const u=n=>gl.getUniformLocation(p,n);
  const U={center:u('uCenter'),radius:u('uRadius'),right:u('uRight'),up:u('uUp'),forward:u('uForward'),focal:u('uFocal'),tint:u('uTint'),tex:u('uTex'),has:u('uHasTex')};
  gl.uniform1f(U.focal,1);gl.uniform1i(U.tex,0);gl.clearColor(.005,.01,.02,1);
- const earth=texture(gl,'https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57730/land_ocean_ice_2048.jpg');
- const moon=texture(gl,'https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_2k.jpg');
+ const earth=texture(gl,'textures/earth.jpg');
+ earthFallback(gl,earth);
+ const moon=texture(gl,'textures/moon.jpg');
  const blank=texture(gl,'');
  let snapshot=null,last=0,busy=false;
  async function read(){if(busy)return;busy=true;try{const res=await fetch('state.php?observer='+observerId,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);snapshot=await res.json();last=Date.now();}catch(e){status.textContent='TELEMETRY ERROR: '+e.message;}finally{busy=false;}}
@@ -56,7 +76,7 @@ export function startOpticalWindow(id,observerId){
   const objs=snapshot.objects||[],self=objs.find(o=>+o.id===observerId);if(!self){status.textContent='OBSERVER MISSING';return;}
   const axes=basis(self),position=[+self.x,+self.y,+self.z],items=[];
   const earthObj=objs.find(o=>+o.id===1);
-  if(earthObj){const aim=norm(sub([+earthObj.x,+earthObj.y,+earthObj.z],position));const angle=Math.acos(Math.max(-1,Math.min(1,dot(axes.f,aim))))*180/Math.PI;status.textContent='EARTH '+angle.toFixed(0)+'° OFF AXIS · YAW '+Number(self.yaw).toFixed(0)+'°'+(earth.failed?' · EARTH TEXTURE FAILED':'');}
+  if(earthObj){const aim=norm(sub([+earthObj.x,+earthObj.y,+earthObj.z],position));const angle=Math.acos(Math.max(-1,Math.min(1,dot(axes.f,aim))))*180/Math.PI;status.textContent='EARTH '+angle.toFixed(0)+'° OFF AXIS · YAW '+Number(self.yaw).toFixed(0)+'°'+(earth.failed?' · USING FALLBACK MAP':'');}
   if(Date.now()-last>5000)status.textContent='TELEMETRY STALE';
   for(const o of objs){if(+o.id===observerId)continue;const center=sub([+o.x,+o.y,+o.z],position).map(x=>x*.001),dist=Math.hypot(...center),radius=(+o.radius_length||1)*.001;if(!dist)continue;items.push({o,center,dist,radius});}
   items.sort((a,b)=>b.dist-a.dist);
