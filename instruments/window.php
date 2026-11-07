@@ -8,6 +8,12 @@ $windowId='optical-'.bin2hex(random_bytes(6));
   <div id="<?=htmlspecialchars($windowId,ENT_QUOTES)?>-status" style="position:absolute;bottom:8px;left:10px;color:#9fb3a5;font:11px monospace;pointer-events:none"></div>
 </div>
 <script type="module">
-import {startOpticalWindow} from './instruments/window3d.js';
-startOpticalWindow(<?=json_encode($windowId)?>, <?=(int)$observerId?>);
+const id=<?=json_encode($windowId)?>;
+const status=document.getElementById(id+'-status');
+import('./instruments/window3d.js').then(({startOpticalWindow})=>{
+ startOpticalWindow(id,<?=(int)$observerId?>);
+}).catch(err=>{
+ status.textContent='3D MODULE FAILED — '+(err?.message||String(err));
+ console.error('Moon 3D import error',err);
+});
 </script>
