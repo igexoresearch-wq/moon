@@ -26,6 +26,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   if($new!==$state){
    $q=$conn->prepare('UPDATE reliability_components SET state=?,state_since=NOW() WHERE component_key=?');
    $q->bind_param('is',$new,$key);$q->execute();
+   if($system==='rcs'){
+    // Only healthy/off thrusters follow the cluster switch; 2/3 faults persist.
+    $prefix=$craft===3?'cm_rcs_%':'lm_rcs_%';
+    $target=$new===4?4:1;$prior=$new===4?1:4;
+    $jets=$conn->prepare("UPDATE reliability_components SET state=?,state_since=NOW() WHERE component_key LIKE ? AND component_key<>? AND state=?");
+    $jets->bind_param('issi',$target,$prefix,$key,$prior);
+    $jets->execute();
+   }
   }
   $conn->commit();
  }catch(Throwable $e){$conn->rollback();http_response_code(500);exit;}
