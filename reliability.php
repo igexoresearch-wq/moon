@@ -30,12 +30,12 @@ function moonReliabilityTick(mysqli $db, int $tick):void {
 
 /**
  * On a button/ignition: use this method BEFORE changing any hardware state.
- * Returns ['allowed'=>bool,'reason'=>string,'state'=>1|2|3,'roll'=>int|null].
+ * Returns ['allowed'=>bool,'reason'=>string,'state'=>1|2|3|4,'roll'=>int|null].
  * Unknown components fail closed rather than silently bypassing reliability.
  */
 function moonReliabilityCommand(mysqli $db,string $key,string $operation='activate'):array {
     if(!preg_match('/^[a-z0-9_]{1,90}$/',$key))throw new InvalidArgumentException('Invalid component key');
-    $q=$db->prepare('SELECT id,component_key,component_name,state,restore_at FROM reliability_components WHERE component_key=? FOR UPDATE');
+    $q=$db->prepare('SELECT id,component_key,component_name,state,restore_at,failure_rule FROM reliability_components WHERE component_key=? FOR UPDATE');
     $q->bind_param('s',$key);$q->execute();$c=$q->get_result()->fetch_assoc();
     if(!$c)throw new RuntimeException('Component not registered: '.$key);
     $id=(int)$c['id'];
@@ -44,16 +44,23 @@ function moonReliabilityCommand(mysqli $db,string $key,string $operation='activa
         $reset->bind_param('i',$id);$reset->execute();$c['state']=1;
     }
     if((int)$c['state']!==1){
-        return ['allowed'=>false,'reason'=>(int)$c['state']===2?'temporarily_offline':'permanently_offline','state'=>(int)$c['state'],'roll'=>null];
+        return ['allowed'=>false,'reason'=>(int)$c['state']===4?'off':'unavailable','state'=>(int)$c['state'],'roll'=>null];
     }
     $random=$db->query('SELECT roll,sim_tick FROM reliability_random WHERE id=1 FOR UPDATE')->fetch_assoc();
     if(!$random)throw new RuntimeException('Reliability random value not initialized');
     $roll=(int)$random['roll'];$tick=(int)$random['sim_tick'];
     $block=intdiv($roll-1,1000);$slot=(($roll-1)%1000)+1;
     $type=null;$duration=null;$nextState=1;
-    if($slot<=10)$type='missed';
-    elseif($slot<=15){$type='temporary';$duration=random_int(60,3600);$nextState=2;}
-    elseif($slot===16 && $block<5){$type='permanent';$nextState=3;}
+    $rule=(string)$c['failure_rule'];
+    if($rule==='legacy_rcs'){
+        if($slot<=10)$type='missed';
+        elseif($slot<=15){$type='temporary';$duration=random_int(60,3600);$nextState=2;}
+        elseif($slot===16 && $block<5){$type='permanent';$nextState=3;}
+    }elseif($rule==='imu_suffix_under_100' && $roll<100){
+        if($roll%10===1){$type='temporary';$duration=random_int(60,3600);$nextState=2;}
+        elseif($roll%10===2){$type='permanent';$nextState=3;}
+    }
+
     if($type!==null){
         $desc=match($type){
             'missed'=>"$operation command did not respond",
