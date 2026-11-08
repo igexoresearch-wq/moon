@@ -20,6 +20,7 @@
 | `reliability_random` | One 1–100000 roll, simulation tick, generated_at | **RESET** to a neutral roll / baseline and tick; do not preserve a stale random draw. |
 | `reliability_components` | Hardware catalog, spacecraft_id, hidden working/temporarily offline/permanently failed state, restore_at, last command, master flag, alarm_name | **RESET runtime condition/timestamps only**: state=1, state_since/restore_at/last_command_at to baseline. **PRESERVE** component_key, name, spacecraft_id, master, alarm_name, IDs and any later static metadata. |
 | `reliability_failures` | Historical failure records, unacknowledged alarms, recovery times, actual hidden failure classification | **CLEAR active mission failures** on reset. Optionally archive prior mission history elsewhere; do not leave unacknowledged alarms. |
+| `rcs` | CM/SM/LM RCS fuel and oxidizer masses, thrust configuration, model inertia, system enabled state | **RESTORE** launch fuel/oxidizer and enabled state. **PRESERVE** calibrated hardware specifications, craft ownership and IDs. Current RCS seed values are placeholders. |
 | `console_instruments` | Instruments assigned to stations, pos_x/pos_y | **PRESERVE**. Editing layout must survive reset. |
 | `instrument_sources` | Pasted HTML instrument code and dimensions | **PRESERVE**. Reset must never delete custom instrument definitions. |
 
@@ -48,6 +49,14 @@ Units: meters, m/s, kg; angles in degrees. Earth fixed at (0,0,0) with **no Eart
 - [ ] Attached/detached dependencies, offsets, active flags, surface contacts/landing offsets.
 - [ ] Mission tick/time, stage sequencing, burns/impulses, docking state, rendezvous state (when implemented).
 - [ ] Preserve Earth/Moon natural-body definitions; restore chosen launch positions/velocities. **Do not automatically enable Earth's axial rotation.**
+
+### RCS — implemented initial pulse controller (2026-11-07)
+- [ ] Restore RCS fuel_kg, oxidizer_kg and enabled for CM, SM and LM at chosen final launch baseline.
+- [ ] Preserve RCS thrust_n, isp_s, torque_arm_m, inertia_kg_m2, pulse_seconds and craft_id once validated.
+- [ ] Reset all RCS direction reliability records with other component failure states.
+- [ ] Keep `instruments/rcs.php` positions and `console_instruments` layout during reset.
+- [ ] Current controls use one pulse per click, not rate-hold or auto-stop; final design may add commands/counters/timers requiring their own reset treatment.
+- [ ] Future RCS/vehicle systems must be scanned for any addition of runtime columns or tables.
 
 ### Propulsion and spacecraft hardware (future)
 - [ ] Engine armed/on/off, throttle, ignition/start attempts, thrust state.
