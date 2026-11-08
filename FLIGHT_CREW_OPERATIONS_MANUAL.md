@@ -209,3 +209,16 @@ No other mode should be documented as operational until the associated software 
 
 # APPENDIX C — AUTHORING AND PRINT PREPARATION
 **Target format:** U.S. letter, monochrome, two-column technical manual where useful; bold all-caps headings, monospaced tables, numbered steps, warning/caution boxes, revision numbers, page numbers, schematic line drawings, and blank annotation space. Use original wording and historically inspired *design*, not NASA trademarks or false claims of official origin. A PDF can be rendered from this Markdown once sections stabilize. Cross-reference equipment names to actual simulator files/SQL schema before each release.
+
+
+## Flight Director Attitude Indicator (FDAI) / IMU — development edition
+The **eight-ball** is a separately movable instrument on the CM Commander and LM Commander stations. It shows roll (R), pitch (P) and yaw (Y) as a round moving ball and fixed numerical scales rounded to **0.1 degree**. The display represents the **IMU's estimated attitude**, not an independently perfect measurement of the spacecraft's attitude. The optical window remains tied to the true simulation physics state.
+
+### Attitude tracking
+Each one-second simulation tick the IMU module reads the current craft pitch, yaw and roll rates, rounds **each rate to 5 decimal places (degrees/second)**, multiplies by the one-second timestep, and integrates its own angle state. The estimate is retained in SQL independently of the physics object, so small quantization discrepancies can accumulate. This first-pass Euler-angle integration is simplified; it does not model full 3D gimbal kinematics, mechanical response, star-sighting errors, or measured Apollo gyro drift.
+
+### Alignment — temporary simulator shortcut
+Pressing **IMU ALIGN** currently prompts for confirmation and makes the estimated attitude equal to the spacecraft's true orientation without moving the spacecraft. This is a development/testing control, **not a historically accurate Apollo alignment method**. A later revision will substitute star sightings and guidance-computer-based alignment; it should never provide the crew with a direct view of hidden true values.
+
+### Reset and installation
+Run **imu_schema.sql once** after the main schema exists, before deploying the IMU-enabled execute.php worker. The schema registers independent Commander instruments and retains their later editor positions. The launch-reset specification includes IMU state, its reference configuration and alignment timestamps while retaining the instrument layout.
