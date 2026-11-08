@@ -52,13 +52,13 @@ VALUES
 (1,'Earth',5.9723e24,6371000,0,0,0,0,0,0,NULL,0,1,0),
 (2,'Moon',7.342e22,1737400,384400000,0,0,0,1018.3,0,NULL,0,1,0),
 (3,'Command Module',5560,3.9,7371000,0,0,0,7354.3,0,NULL,0,1,0),
-(4,'Service Module',6100,7.5,7370997,0,0,0,7354.3,0,3,1,1,3,0),
-(5,'Launch Escape Tower',3600,10,0,0,0,0,0,0,3,1,0,4,0),
-(6,'LM Ascent Stage',2150,3,0,0,0,0,0,0,7,1,0,3,0),
-(7,'LM Descent Stage',2100,4,0,0,0,0,0,0,8,1,0,4,0),
-(8,'Saturn V Third Stage',11700,18,0,0,0,0,0,0,9,1,0,18,0),
-(9,'Saturn V Second Stage',40000,25,0,0,0,0,0,0,10,1,0,25,0),
-(10,'Saturn V First Stage',131000,42,0,0,0,0,0,0,NULL,0,0,42,0)
+(4,'Service Module',6100,7.5,7370997,0,0,0,7354.3,0,3,1,1,3),
+(5,'Launch Escape Tower',3600,10,0,0,0,0,0,0,3,1,0,4),
+(6,'LM Ascent Stage',2150,3,0,0,0,0,0,0,7,1,0,3),
+(7,'LM Descent Stage',2100,4,0,0,0,0,0,0,8,1,0,4),
+(8,'Saturn V Third Stage',11700,18,0,0,0,0,0,0,9,1,0,18),
+(9,'Saturn V Second Stage',40000,25,0,0,0,0,0,0,10,1,0,25),
+(10,'Saturn V First Stage',131000,42,0,0,0,0,0,0,NULL,0,0,42)
 ON DUPLICATE KEY UPDATE name=VALUES(name);
 INSERT INTO console_instruments(console_id,file_name,pos_x,pos_y)
 VALUES('cmc','window.php',20,60),('lmc','window.php',20,60)
