@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS reliability_components (
  component_key VARCHAR(90) NOT NULL UNIQUE,
  component_name VARCHAR(140) NOT NULL,
  spacecraft_id INT UNSIGNED NULL,
+ master TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = show individual caution lamp',
+ alarm_name VARCHAR(40) NULL COMMENT 'Short cockpit indicator label',
  state TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1 working; 2 temporarily offline; 3 failed permanently',
  state_since DATETIME NULL,
  restore_at DATETIME NULL,
