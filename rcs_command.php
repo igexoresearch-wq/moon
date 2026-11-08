@@ -28,6 +28,10 @@ try{
  $system=$craft===3?4:6;
  $q=$conn->prepare('SELECT * FROM rcs WHERE craft_id=? FOR UPDATE');$q->bind_param('i',$system);$q->execute();$rcs=$q->get_result()->fetch_assoc();
  if(!$rcs || !(int)$rcs['enabled']){ $conn->rollback();echo json_encode(['fired'=>false]);exit;}
+ $clusterKey=($craft===3?'cm':'lm').'_rcs_cluster';
+ $power=$conn->prepare('SELECT state FROM reliability_components WHERE component_key=? FOR UPDATE');
+ $power->bind_param('s',$clusterKey);$power->execute();$cluster=$power->get_result()->fetch_assoc();
+ if(!$cluster || (int)$cluster['state']!==1){$conn->commit();echo json_encode(['fired'=>false]);exit;}
  $reliability=moonReliabilityCommand($conn,$key,'RCS pulse');
  if(!$reliability['allowed']){$conn->commit();echo json_encode(['fired'=>false]);exit;}
  $dt=(float)$rcs['pulse_seconds'];$isp=(float)$rcs['isp_s'];$thrust=(float)$rcs['thrust_n'];
