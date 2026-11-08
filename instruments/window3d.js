@@ -52,8 +52,8 @@ void main(){
  vec3 moonPixel=texture2D(uMoon,uv).rgb;
  if(hit==0 && uEarthReady>0.5)color=earthPixel;
  else if(hit==1 && uMoonReady>0.5)color=moonPixel;
- float daylight=0.18+0.82*max(0.,dot(normal,normalize(vec3(0.8,0.3,0.45))));
- gl_FragColor=vec4(color*daylight,1.);
+ // Diagnostic: display the actual texture without artificial dark-side shading.
+ gl_FragColor=vec4(color,1.);
 }`;
 function loadImageTexture(gl,path,unit){
  const result={ready:false,error:false,texture:null};
@@ -165,7 +165,7 @@ export function startOpticalWindow(canvasId,observerId){
       ' · HALF ANGLE '+angularRadius.toFixed(0)+'°';
   }
   status.textContent=(angle===null?'NO EARTH':('EARTH '+angle.toFixed(0)+'° OFF AXIS'))+
-   ' · '+geometry+
+   ' · UNLIT TEXTURE TEST · '+geometry+
    (earth.ready?' · TEXTURE OK':earth.error?' · EARTH TEXTURE FAILED':' · TEXTURE LOADING')+
    (Date.now()-lastUpdate>5000?' · TELEMETRY STALE':'');
  }
