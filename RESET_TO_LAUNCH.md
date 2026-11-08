@@ -134,3 +134,12 @@ When adding code, explicitly ask:
 - [ ] `amps`: RCS cluster 0.100 A, IMU 2.000 A, per-direction RCS controls 0 A to prevent double-counted continuous load. Actual bus consumption integration is future work.
 - [ ] `failure_rule`: configurable per component; current RCS legacy command pattern vs IMU less-than-100 trailing 3/4 per-tick pattern. Do not apply RCS probabilities automatically to future equipment.
 - [ ] Off state (4) is not an alarm/failure and must not turn the master caution yellow.
+
+
+## Service Module fuel cells (2026-11-08)
+- [ ] Restore `sm_fuel_cell_1`, `sm_fuel_cell_2`, `sm_fuel_cell_3` component states from final launch baseline (currently seeded 1 ON), and clear their temporary timers and mission fault records.
+- [ ] Preserve their static `amps=-50.000` generation ratings; energized generator contributes −50 A to the future signed electrical accounting convention. A failed or off generator outputs 0 A.
+- [ ] Preserve each cell's independent ON/OFF selector and CM Commander `fuel_cells.php` instrument layout.
+- [ ] Every tick compare the shared reliability roll with the fuel cell's own rules: cell 1 temporary 10–20, cell 2 temporary 21–40, cell 3 temporary 41–50, and permanent 501, 502, 503 respectively. The two overlapping range boundaries 20 and 40 are assigned to the preceding cell to ensure one outcome per roll. This choice may be revised with the user.
+- [ ] When SM (object 4) is no longer active and dependent on CM (object 3), permanently fail all fuel cells not intentionally switched OFF (state 4). Preserve cells intentionally off. Restoring physical mating does NOT fix permanent faults.
+- [ ] Future electrical bus must aggregate only actual operating outputs; do not subtract three nameplate ratings without checking component states.
