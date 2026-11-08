@@ -23,7 +23,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  WHERE f.acknowledged=0 AND c.spacecraft_id IN ($where)");
 }
 $rows=$conn->query("SELECT c.id,c.alarm_name,c.component_name,
-   (c.state<>1 OR EXISTS(SELECT 1 FROM reliability_failures f WHERE f.component_id=c.id AND f.acknowledged=0)) AS lit
+   (c.state IN (2,3) OR EXISTS(SELECT 1 FROM reliability_failures f WHERE f.component_id=c.id AND f.acknowledged=0)) AS lit
  FROM reliability_components c
  WHERE c.master=1 AND c.spacecraft_id IN ($where) ORDER BY c.id")->fetch_all(MYSQLI_ASSOC);
 $alarm=$conn->query("SELECT EXISTS(
