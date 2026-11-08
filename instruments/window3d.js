@@ -23,6 +23,7 @@ uniform float uRadii[16];
 uniform int uCount;
 uniform sampler2D uEarth,uMoon;
 uniform float uEarthReady,uMoonReady;
+uniform float uEarthYaw;
 const float FAR=1.0e12;
 void main(){
  vec3 direction=normalize(uForward+vPoint.x*uRight+vPoint.y*uUp);
@@ -43,17 +44,26 @@ void main(){
  if(hit<0){gl_FragColor=vec4(0.002,0.004,0.009,1.);return;}
  vec3 color=vec3(0.7);
  for(int i=0;i<16;i++){if(i==hit){color=uColors[i];break;}}
- float longitude=atan(normal.z,normal.x);
- float latitude=asin(clamp(normal.y,-1.,1.));
- vec2 uv=vec2(fract(0.5+longitude/6.28318530718),clamp(0.5-latitude/3.14159265359,0.001,0.999));
+ // Earth spins about the simulation's +Z axis. Rotate surface normal
+ // into Earth's own texture frame; sunlight stays fixed in world space.
+ float c=cos(uEarthYaw),s=sin(uEarthYaw);
+ vec3 earthLocal=vec3(c*normal.x+s*normal.y,-s*normal.x+c*normal.y,normal.z);
+ float earthLongitude=atan(earthLocal.y,earthLocal.x);
+ float earthLatitude=asin(clamp(earthLocal.z,-1.,1.));
+ vec2 earthUV=vec2(fract(0.5+earthLongitude/6.28318530718),clamp(0.5-earthLatitude/3.14159265359,0.001,0.999));
+ float moonLongitude=atan(normal.z,normal.x);
+ float moonLatitude=asin(clamp(normal.y,-1.,1.));
+ vec2 moonUV=vec2(fract(0.5+moonLongitude/6.28318530718),clamp(0.5-moonLatitude/3.14159265359,0.001,0.999));
  // In WebGL 1 both samplers must be evaluated in uniform control flow.
  // Sampling inside per-pixel hit branches can give undefined texture results.
- vec3 earthPixel=texture2D(uEarth,uv).rgb;
- vec3 moonPixel=texture2D(uMoon,uv).rgb;
+ vec3 earthPixel=texture2D(uEarth,earthUV).rgb;
+ vec3 moonPixel=texture2D(uMoon,moonUV).rgb;
  if(hit==0 && uEarthReady>0.5)color=earthPixel;
  else if(hit==1 && uMoonReady>0.5)color=moonPixel;
- // Diagnostic: display the actual texture without artificial dark-side shading.
- gl_FragColor=vec4(color,1.);
+ // Fixed inertial Sun direction for initial optical realism.
+ float sun=max(0.,dot(normal,normalize(vec3(0.8,0.3,0.45))));
+ float illumination=0.045+0.955*sun;
+ gl_FragColor=vec4(color*illumination,1.);
 }`;
 function loadImageTexture(gl,path,unit){
  const result={ready:false,error:false,texture:null};
@@ -93,7 +103,7 @@ export function startOpticalWindow(canvasId,observerId){
  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
  const loc=gl.getAttribLocation(program,'aPoint');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
  const u=name=>gl.getUniformLocation(program,name);
- const U={forward:u('uForward'),right:u('uRight'),up:u('uUp'),centers:u('uCenters[0]'),colors:u('uColors[0]'),radii:u('uRadii[0]'),count:u('uCount'),earthReady:u('uEarthReady'),moonReady:u('uMoonReady')};
+ const U={forward:u('uForward'),right:u('uRight'),up:u('uUp'),centers:u('uCenters[0]'),colors:u('uColors[0]'),radii:u('uRadii[0]'),count:u('uCount'),earthReady:u('uEarthReady'),moonReady:u('uMoonReady'),earthYaw:u('uEarthYaw')};
  gl.uniform1i(u('uEarth'),0);gl.uniform1i(u('uMoon'),1);
  const earth=loadImageTexture(gl,'textures/earth.jpg',0),moon=loadImageTexture(gl,'textures/moon.jpg',1);
  let state=null,loading=false,lastUpdate=0;
@@ -141,6 +151,7 @@ export function startOpticalWindow(canvasId,observerId){
   gl.uniform3fv(U.forward,new Float32Array(basis.forward));gl.uniform3fv(U.right,new Float32Array(basis.right));gl.uniform3fv(U.up,new Float32Array(basis.up));
   gl.uniform3fv(U.centers,new Float32Array(centers));gl.uniform3fv(U.colors,new Float32Array(colors));
   gl.uniform1fv(U.radii,new Float32Array(radii));gl.uniform1i(U.count,visible.length);
+  gl.uniform1f(U.earthYaw,(Number(earthObj?.yaw)||0)*R);
   gl.uniform1f(U.earthReady,earth.ready?1:0);gl.uniform1f(U.moonReady,moon.ready?1:0);
   // Rebind textures explicitly before rendering; never rely on the active
   // texture state left over from asynchronous image onload handlers.
