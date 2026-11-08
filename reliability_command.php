@@ -25,7 +25,8 @@ try{
     $conn->commit();
     // Future button handlers should execute the actual hardware command only
     // after receiving allowed=true. This endpoint never applies thrust itself.
-    echo json_encode($result,JSON_THROW_ON_ERROR);
+    // Crew endpoints never reveal the hidden failure state, roll, or duration.
+    echo json_encode(['allowed'=>(bool)$result['allowed']],JSON_THROW_ON_ERROR);
 }catch(InvalidArgumentException $e){
     $conn->rollback();http_response_code(400);echo json_encode(['error'=>$e->getMessage()]);
 }catch(Throwable $e){
