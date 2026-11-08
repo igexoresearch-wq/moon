@@ -14,7 +14,10 @@ $rcsUid='rcs-'.bin2hex(random_bytes(5));
  #<?=htmlspecialchars($rcsUid)?> .rcs-sep{height:1px;background:#72766f;margin:10px 0}
  #<?=htmlspecialchars($rcsUid)?> .rcs-pair{display:flex;gap:5px;justify-content:center}
  #<?=htmlspecialchars($rcsUid)?> .rcs-pair button{min-height:40px;min-width:106px}
- #<?=htmlspecialchars($rcsUid)?> .rcs-level{display:flex;justify-content:space-between;margin-top:9px;color:#e1dcb5;font:12px monospace}
+ #<?=htmlspecialchars($rcsUid)?> .rcs-gauges{display:flex;justify-content:space-evenly;gap:12px;margin-top:12px}
+ #<?=htmlspecialchars($rcsUid)?> .rcs-gauge{width:112px;height:112px;position:relative}
+ #<?=htmlspecialchars($rcsUid)?> .rcs-gauge svg{width:100%;height:100%;display:block}
+ #<?=htmlspecialchars($rcsUid)?> .rcs-needle{transform-origin:60px 60px;transform:rotate(-120deg)}
  </style>
  <div class="rcs-title">REACTION CONTROL SYSTEM</div>
  <div class="rcs-sub">ATTITUDE — PITCH / YAW</div>
@@ -34,7 +37,44 @@ $rcsUid='rcs-'.bin2hex(random_bytes(5));
  </div>
  <div class="rcs-sub">TRANSLATION — UP / DOWN</div>
  <div class="rcs-pair"><button data-axis="vertical" data-sign="1">UP</button><button data-axis="vertical" data-sign="-1">DOWN</button></div>
- <div class="rcs-level"><span>FUEL: <b class="rcs-fuel">—</b> kg</span><span>OXIDIZER: <b class="rcs-oxidizer">—</b> kg</span></div>
+ <div class="rcs-gauges">
+  <div class="rcs-gauge" role="img" aria-label="FUEL quantity analog gauge">
+   <svg viewBox="0 0 120 120" aria-hidden="true">
+    <circle cx="60" cy="60" r="55" fill="#1d2221" stroke="#999b90" stroke-width="4"/>
+    <circle cx="60" cy="60" r="49" fill="none" stroke="#111" stroke-width="2"/>
+    <?php for($i=0;$i<=8;$i++):
+      $a=deg2rad(-120+($i*30));
+      $x1=60+($i%2===0?39:43)*sin($a);$y1=60-($i%2===0?39:43)*cos($a);
+      $x2=60+49*sin($a);$y2=60-49*cos($a);
+    ?>
+    <line x1="<?=round($x1,2)?>" y1="<?=round($y1,2)?>" x2="<?=round($x2,2)?>" y2="<?=round($y2,2)?>" stroke="#dddcc9" stroke-width="<?=$i%2===0?2.5:1?>"/>
+    <?php endfor; ?>
+    <text x="60" y="34" text-anchor="middle" fill="#e5e5d9" font-family="Arial" font-size="12" font-weight="bold">FUEL</text>
+    <text x="29" y="95" text-anchor="middle" fill="#d7d7c8" font-family="Arial" font-size="9">E</text>
+    <text x="91" y="95" text-anchor="middle" fill="#d7d7c8" font-family="Arial" font-size="9">F</text>
+    <g class="rcs-needle rcs-fuel-needle"><path d="M 60 17 L 57.5 62 L 62.5 62 Z" fill="#e6c99a" stroke="#9b8060" stroke-width="0.7"/></g>
+    <circle cx="60" cy="60" r="5" fill="#999b94" stroke="#141616" stroke-width="2"/>
+   </svg>
+  </div>
+  <div class="rcs-gauge" role="img" aria-label="OX quantity analog gauge">
+   <svg viewBox="0 0 120 120" aria-hidden="true">
+    <circle cx="60" cy="60" r="55" fill="#1d2221" stroke="#999b90" stroke-width="4"/>
+    <circle cx="60" cy="60" r="49" fill="none" stroke="#111" stroke-width="2"/>
+    <?php for($i=0;$i<=8;$i++):
+      $a=deg2rad(-120+($i*30));
+      $x1=60+($i%2===0?39:43)*sin($a);$y1=60-($i%2===0?39:43)*cos($a);
+      $x2=60+49*sin($a);$y2=60-49*cos($a);
+    ?>
+    <line x1="<?=round($x1,2)?>" y1="<?=round($y1,2)?>" x2="<?=round($x2,2)?>" y2="<?=round($y2,2)?>" stroke="#dddcc9" stroke-width="<?=$i%2===0?2.5:1?>"/>
+    <?php endfor; ?>
+    <text x="60" y="34" text-anchor="middle" fill="#e5e5d9" font-family="Arial" font-size="12" font-weight="bold">OX</text>
+    <text x="29" y="95" text-anchor="middle" fill="#d7d7c8" font-family="Arial" font-size="9">E</text>
+    <text x="91" y="95" text-anchor="middle" fill="#d7d7c8" font-family="Arial" font-size="9">F</text>
+    <g class="rcs-needle rcs-oxidizer-needle"><path d="M 60 17 L 57.5 62 L 62.5 62 Z" fill="#e6c99a" stroke="#9b8060" stroke-width="0.7"/></g>
+    <circle cx="60" cy="60" r="5" fill="#999b94" stroke="#141616" stroke-width="2"/>
+   </svg>
+  </div>
+ </div>
 </div>
 <script>
 (()=>{
@@ -45,8 +85,13 @@ $rcsUid='rcs-'.bin2hex(random_bytes(5));
  async function levels(){
   try{const r=await fetch('rcs_status.php?craft='+craft,{cache:'no-store'});
    if(!r.ok)return;const v=await r.json();
-   panel.querySelector('.rcs-fuel').textContent=Number(v.fuel_kg).toFixed(2);
-   panel.querySelector('.rcs-oxidizer').textContent=Number(v.oxidizer_kg).toFixed(2);
+   for(const [name,capacity] of [['fuel','fuel_capacity_kg'],['oxidizer','oxidizer_capacity_kg']]){
+    const full=Number(v[capacity]),remaining=Number(v[name+'_kg']);
+    if(!Number.isFinite(full)||full<=0||!Number.isFinite(remaining))continue;
+    const ratio=Math.max(0,Math.min(1,remaining/full));
+    const needle=panel.querySelector('.rcs-'+name+'-needle');
+    needle.style.transform='rotate('+(-120+ratio*240)+'deg)';
+   }
   }catch(e){}
  }
  panel.querySelectorAll('button[data-axis]').forEach(button=>button.addEventListener('click',async()=>{
