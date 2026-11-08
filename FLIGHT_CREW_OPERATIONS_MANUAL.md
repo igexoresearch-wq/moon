@@ -42,7 +42,7 @@ The controller is divided into:
 - ATTITUDE — PITCH and YAW: change rotational rates about spacecraft axes.
 - ATTITUDE — ROLL: rotate about the spacecraft forward axis.
 - TRANSLATION — FORWARD/AFT, LEFT/RIGHT, UP/DOWN: produce a velocity change along the commanded local axis without commanding an attitude change.
-- FUEL and OXIDIZER quantity: show separate remaining propellant mass, in kilograms.
+- FUEL and OXIDIZER quantity: two analog pointer gauges indicating remaining propellant fraction relative to each system's full-scale mass capacity (kg stored internally). No continuously changing digital quantity labels are displayed.
 
 The present simulator implements **individual pulses per press**, not continuous holding or automatic attitude stabilization. This is an important interim limitation: the craft may **continue rotating after a pulse** until an opposite pulse counters its angular rate. Releasing the button presently does NOT produce a stopping pulse.
 
@@ -80,7 +80,7 @@ This simulator currently uses:
                      TRANSLATION — U/D
                         [UP]   [DOWN]
 
-                 FUEL ___ kg  OXIDIZER ___ kg
+                (FUEL POINTER)  (OX POINTER)
 ```
 A short command response is indicated below the quantities:
 - PULSE FIRED: the server confirmed a commanded pulse.
@@ -123,7 +123,7 @@ The current CM Commander control head consumes **SM RCS** propellant, and the LM
 
 **IMPORTANT ENGINEERING NOTE:** This is an interim CSM system selection. Before implementing CM/SM separation, the controller must select CM RCS when the SM is no longer attached, and use correct thruster body geometry for the combined spacecraft.
 
-Two propellant quantities are represented:
+Two propellant quantities are represented in the database and indicated by analog E-to-F pointer dials (no numerical kg text on the cockpit control):
 - FUEL (kg)
 - OXIDIZER (kg)
 
@@ -131,7 +131,7 @@ Thruster operation requires both liquids. Each successful pulse deducts from eac
 
 The current seeded capacities, thrust levels, specific impulses, torque arms and inertias are **development placeholders**, NOT historically verified loading values. Replace them with component-accurate references as the model matures. Quantities must remain nonnegative.
 
-### Engineering pulse model
+The dial needles point toward **E** when quantity is depleted and toward **F** when full. Each needle is computed from remaining mass divided by its configured full-scale capacity; these capacities remain constant during flight. This indicator measures quantity, not a direct flow-rate or pressure reading.\n\n### Engineering pulse model
 For commanded pulse duration `t`, thrust `F`, specific impulse `Isp`, gravity constant `g0`:
 
 - Total expelled propellant (kg): `m = F × t / (Isp × 9.80665)`
