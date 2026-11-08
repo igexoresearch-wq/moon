@@ -6,6 +6,7 @@ require_once __DIR__.'/physics.php';
 require_once __DIR__.'/reliability.php';
 require_once __DIR__.'/imu.php';
 require_once __DIR__.'/fuel_cells.php';
+require_once __DIR__.'/electrical.php';
 // Invoke once per minute from cron; runs up to 60 simulated one-second ticks.
 // Prevent concurrent workers via a MySQL advisory lock.
 $lock=$conn->query("SELECT GET_LOCK('moon_v2_execute',0) AS locked")->fetch_assoc();
@@ -21,6 +22,7 @@ try {
    moonReliabilityTick($conn,(int)$clock['tick']+1);
    moonFuelCellsTick($conn,(int)$clock['tick']+1);
    moonImuTick($conn,1.0,(int)$clock['tick']+1);
+   moonElectricalTick($conn,(int)$clock['tick']+1);
    // Future systems: include another one-tick module HERE.
    $conn->query('UPDATE sim_clock SET tick=tick+1,updated_at=NOW() WHERE id=1');
    $conn->commit();
