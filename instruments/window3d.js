@@ -124,7 +124,23 @@ export function startOpticalWindow(canvasId,observerId){
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   const error=gl.getError();
   if(error!==gl.NO_ERROR){status.textContent='WEBGL ERROR '+error;return;}
+  let geometry='EARTH ROW MISSING';
+  if(earthObj){
+   const d=Math.hypot(...earthVector),radius=Number(earthObj.radius_length);
+   const angularRadius=d>radius?Math.asin(Math.min(1,radius/d))*180/Math.PI:90;
+   const altitude=d-radius;
+   const pointing=angle!==null && angle<angularRadius;
+   // An independent JavaScript ray/sphere check; if it says HIT while the
+   // window is blank, the fault is confined to the GPU shader/draw pipeline.
+   const forward=basis.forward,ray=earthVector.map(v=>v*.001);
+   const projection=ray.reduce((a,v,i)=>a+v*forward[i],0);
+   const discriminant=projection*projection-ray.reduce((a,v)=>a+v*v,0)+(radius*.001)**2;
+   geometry='ALT '+Math.round(altitude/1000)+'km · DISC '+Math.round(discriminant)+
+      ' · '+(pointing?'CENTER RAY INSIDE DISK':'CENTER RAY OUTSIDE DISK')+
+      ' · HALF ANGLE '+angularRadius.toFixed(0)+'°';
+  }
   status.textContent=(angle===null?'NO EARTH':('EARTH '+angle.toFixed(0)+'° OFF AXIS'))+
+   ' · '+geometry+
    (earth.ready?' · TEXTURE OK':earth.error?' · EARTH TEXTURE FAILED':' · TEXTURE LOADING')+
    (Date.now()-lastUpdate>5000?' · TELEMETRY STALE':'');
  }
