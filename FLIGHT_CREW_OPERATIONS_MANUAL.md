@@ -222,3 +222,9 @@ Pressing **IMU ALIGN** currently prompts for confirmation and makes the estimate
 
 ### Reset and installation
 Run **imu_schema.sql once** after the main schema exists, before deploying the IMU-enabled execute.php worker. The schema registers independent Commander instruments and retains their later editor positions. The launch-reset specification includes IMU state, its reference configuration and alignment timestamps while retaining the instrument layout.
+
+## ELECTRICAL POWER AND IMU/RCS SWITCHING — 08 NOV 2026
+The CM and LM have independent RCS group and IMU power selectors. **ON** changes state 4 (switched OFF) to state 1 (operational); **OFF** changes working state 1 to 4. A failed component in state 2 or 3 cannot be repaired by cycling its selector. RCS group switching applies only to healthy direction components; faults remain faults. Power-off is not a fault and does not activate MASTER caution. An off IMU freezes its estimated attitude while the spacecraft continues to rotate in true physical space; realignment is a separate operation. Nominal model electrical loads are 0.1 A per powered RCS cluster and 2 A per powered IMU. Power-bus load integration is not yet present.
+
+### Reliability patterns
+RCS direction commands preserve their earlier user-selected activation bands. IMU sampling, once per simulation second when powered and operational, checks the current shared 1–100000 random value. Values **below 100** ending in **1** cause a temporary fault; values below 100 ending in **2** cause a permanent fault. These are simulation-specific decisions and must not be presented as NASA measured failure rates. Every future component needs an explicit electrical load and its own approved reliability rule.
