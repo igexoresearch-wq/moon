@@ -16,6 +16,12 @@ $locked=$conn->query("SELECT GET_LOCK('moon_v2_execute',5) AS acquired")->fetch_
 if((int)$locked['acquired']!==1){http_response_code(503);exit;}
 try{
  $conn->begin_transaction();
+ $key=$id===3?'cm_imu':'lm_imu';
+ $power=$conn->prepare('SELECT state FROM reliability_components WHERE component_key=? FOR UPDATE');
+ $power->bind_param('s',$key);$power->execute();$component=$power->get_result()->fetch_assoc();
+ if(!$component || (int)$component['state']!==1){
+  $conn->rollback();http_response_code(409);echo json_encode(['error'=>'Alignment unavailable']);exit;
+ }
  $q=$conn->prepare("SELECT pitch,yaw,roll FROM objects WHERE id=? FOR UPDATE");
  $q->bind_param('i',$id);$q->execute();$row=$q->get_result()->fetch_assoc();
  if(!$row)throw new RuntimeException('Craft not found');
