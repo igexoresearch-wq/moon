@@ -9,6 +9,15 @@ function moonV2Physics(mysqli $db,float $dt=1.0):void {
  $objects=[];foreach($rows as $row)$objects[(int)$row['id']]=$row;
  if(!isset($objects[1],$objects[2]))throw new RuntimeException('Earth and Moon missing');
  $earth=$objects[1];$moon=$objects[2];
+ // Sidereal rotation: 360 degrees per 86164.0905 s about the simulator Z axis.
+ // Earth is position-anchored but its textured surface rotates in inertial space.
+ // Set the rate here as well for existing databases with yaw_rate=0.
+ $earthRate=360.0/86164.0905;
+ $earthYaw=fmod((float)$earth['yaw']+$earthRate*$dt,360.0);
+ $rotateEarth=$db->prepare('UPDATE objects SET yaw=?,yaw_rate=? WHERE id=1');
+ $rotateEarth->bind_param('dd',$earthYaw,$earthRate);
+ $rotateEarth->execute();
+
  $updates=[];
  foreach($objects as $id=>$o){
   if($id===1||(int)$o['active']!==1)continue;
