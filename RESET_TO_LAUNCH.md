@@ -52,7 +52,7 @@ Units: meters, m/s, kg; angles in degrees. Earth fixed at (0,0,0) with **no Eart
 
 ### RCS — implemented initial pulse controller (2026-11-07)
 - [ ] Restore RCS fuel_kg, oxidizer_kg and enabled for CM, SM and LM at chosen final launch baseline.
-- [ ] Preserve RCS thrust_n, isp_s, torque_arm_m, inertia_kg_m2, pulse_seconds and craft_id once validated.
+- [ ] Preserve RCS fuel_capacity_kg, oxidizer_capacity_kg, thrust_n, isp_s, torque_arm_m, inertia_kg_m2, pulse_seconds and craft_id once validated. Capacities define analog E/F gauge full-scale, NOT mutable propellant quantities.
 - [ ] Reset all RCS direction reliability records with other component failure states.
 - [ ] Keep `instruments/rcs.php` positions and `console_instruments` layout during reset.
 - [ ] Current controls use one pulse per click, not rate-hold or auto-stop; final design may add commands/counters/timers requiring their own reset treatment.
