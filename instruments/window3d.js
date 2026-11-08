@@ -29,10 +29,10 @@ function texture(gl,url){
  const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([170,180,190,255]));
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
- const result={t,ready:false,failed:false};
+ const result={t,ready:false,failed:false,loading:true,url};
  const img=new Image();img.crossOrigin='anonymous';
- img.onload=()=>{try{gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);result.ready=true;}catch(e){result.failed=true;}};
- img.onerror=()=>result.failed=true;img.src=url;return result;
+ img.onload=()=>{try{gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);result.ready=true;result.failed=false;result.loading=false;}catch(e){result.failed=true;result.loading=false;}};
+ img.onerror=()=>{result.failed=true;result.loading=false;};if(url)img.src=url;else result.loading=false;return result;
 }
 // Deterministic, offline fallback. Not NASA imagery: simplified green/brown
 // land and blue oceans so an image/network failure never leaves a blank globe.
@@ -76,7 +76,7 @@ export function startOpticalWindow(id,observerId){
   const objs=snapshot.objects||[],self=objs.find(o=>+o.id===observerId);if(!self){status.textContent='OBSERVER MISSING';return;}
   const axes=basis(self),position=[+self.x,+self.y,+self.z],items=[];
   const earthObj=objs.find(o=>+o.id===1);
-  if(earthObj){const aim=norm(sub([+earthObj.x,+earthObj.y,+earthObj.z],position));const angle=Math.acos(Math.max(-1,Math.min(1,dot(axes.f,aim))))*180/Math.PI;status.textContent='EARTH '+angle.toFixed(0)+'° OFF AXIS · YAW '+Number(self.yaw).toFixed(0)+'°'+(earth.failed?' · USING FALLBACK MAP':'');}
+  if(earthObj){const aim=norm(sub([+earthObj.x,+earthObj.y,+earthObj.z],position));const angle=Math.acos(Math.max(-1,Math.min(1,dot(axes.f,aim))))*180/Math.PI;status.textContent='EARTH '+angle.toFixed(0)+'° OFF AXIS · YAW '+Number(self.yaw).toFixed(0)+'°'+(earth.failed?' · EARTH IMAGE FAILED: /moon/textures/earth.jpg':earth.loading?' · LOADING EARTH IMAGE': ' · EARTH IMAGE OK');}
   if(Date.now()-last>5000)status.textContent='TELEMETRY STALE';
   for(const o of objs){if(+o.id===observerId)continue;const center=sub([+o.x,+o.y,+o.z],position).map(x=>x*.001),dist=Math.hypot(...center),radius=(+o.radius_length||1)*.001;if(!dist)continue;items.push({o,center,dist,radius});}
   items.sort((a,b)=>b.dist-a.dist);
