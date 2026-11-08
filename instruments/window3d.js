@@ -95,6 +95,12 @@ export function startOpticalWindow(canvasId,observerId){
   setTimeout(render,100);if(!state)return;
   const objects=state.objects||[],self=objects.find(x=>Number(x.id)===observerId);
   if(!self){status.textContent='OBSERVER MISSING';return;}
+  if(Number(self.active)!==1){
+   gl.viewport(0,0,canvas.width,canvas.height);
+   gl.clearColor(0.002,0.004,0.009,1);gl.clear(gl.COLOR_BUFFER_BIT);
+   status.textContent='SPACECRAFT INACTIVE — NO LIVE WINDOW VIEW';
+   return;
+  }
   const basis=cameraBasis(self),centers=[],colors=[],radii=[];
   const visible=objects.filter(x=>Number(x.id)!==observerId).sort((a,b)=>Number(a.id)-Number(b.id)).slice(0,16);
   for(const object of visible){
@@ -107,8 +113,9 @@ export function startOpticalWindow(canvasId,observerId){
   const earthObj=visible.find(x=>Number(x.id)===1),moonObj=visible.find(x=>Number(x.id)===2);
   const earthVector=earthObj?[Number(earthObj.x)-Number(self.x),Number(earthObj.y)-Number(self.y),Number(earthObj.z)-Number(self.z)]:null;
   let angle=null;
-  if(earthVector){const len=Math.hypot(...earthVector),dp=earthVector.reduce((sum,x,i)=>sum+x*basis.forward[i],0)/len;
-   angle=Math.acos(Math.max(-1,Math.min(1,dp)))*180/Math.PI;}
+  if(earthVector){const len=Math.hypot(...earthVector);
+   if(len>1){const dp=earthVector.reduce((sum,x,i)=>sum+x*basis.forward[i],0)/len;
+    angle=Math.acos(Math.max(-1,Math.min(1,dp)))*180/Math.PI;}}
   gl.viewport(0,0,canvas.width,canvas.height);gl.useProgram(program);
   gl.uniform3fv(U.forward,new Float32Array(basis.forward));gl.uniform3fv(U.right,new Float32Array(basis.right));gl.uniform3fv(U.up,new Float32Array(basis.up));
   gl.uniform3fv(U.centers,new Float32Array(centers));gl.uniform3fv(U.colors,new Float32Array(colors));
