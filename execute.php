@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__.'/common.php';
 if(PHP_SAPI!=='cli')moonSimRequireWorker();
 require_once __DIR__.'/physics.php';
+require_once __DIR__.'/reliability.php';
 // Invoke once per minute from cron; runs up to 60 simulated one-second ticks.
 // Prevent concurrent workers via a MySQL advisory lock.
 $lock=$conn->query("SELECT GET_LOCK('moon_v2_execute',0) AS locked")->fetch_assoc();
@@ -13,6 +14,9 @@ try {
   $conn->begin_transaction();
   try{
    moonV2Physics($conn,1.0);
+   $clock=$conn->query('SELECT tick FROM sim_clock WHERE id=1 FOR UPDATE')->fetch_assoc();
+   if(!$clock)throw new RuntimeException('Simulation clock missing');
+   moonReliabilityTick($conn,(int)$clock['tick']+1);
    // Future systems: include another one-tick module HERE.
    $conn->query('UPDATE sim_clock SET tick=tick+1,updated_at=NOW() WHERE id=1');
    $conn->commit();
