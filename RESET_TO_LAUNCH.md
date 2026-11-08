@@ -143,3 +143,13 @@ When adding code, explicitly ask:
 - [ ] Every tick compare the shared reliability roll with the fuel cell's own rules: cell 1 temporary 10–20, cell 2 temporary 21–40, cell 3 temporary 41–50, and permanent 501, 502, 503 respectively. The two overlapping range boundaries 20 and 40 are assigned to the preceding cell to ensure one outcome per roll. This choice may be revised with the user.
 - [ ] When SM (object 4) is no longer active and dependent on CM (object 3), permanently fail all fuel cells not intentionally switched OFF (state 4). Preserve cells intentionally off. Restoring physical mating does NOT fix permanent faults.
 - [ ] Future electrical bus must aggregate only actual operating outputs; do not subtract three nameplate ratings without checking component states.
+
+
+## CM batteries and electrical bus (2026-11-08)
+- [ ] Restore both `batteries` rows for craft 3 with 40 Ah capacity; reset `charge_ah` and `enabled` to final launch baseline, preserve battery identity, number and capacity.
+- [ ] Reset `reliability_components.auto_shed` to zero and restore affected component states from baseline. Do not mistake intentional automatic shed (state 4) for a permanent fault.
+- [ ] Reset `electrical_alarms` flags `active`, `acknowledged`, and `updated_tick` and preserve alarm labels.
+- [ ] Preserve `instruments/batteries.php` CM Commander positioning.
+- [ ] Each tick signed current across ON components of craft 3 and, when attached, craft 4: positive = demand, negative = generation. Apply Ah change current / 3600; distribute across ON batteries, limit between 0 and rated capacity.
+- [ ] Alert CM BUS UNDERVOLT if CM+SM mated and net current positive. Alert LOAD SHED when demand cannot be supplied and automatic load shedding occurs; restore power to shed equipment manually after resolving deficit.
+- [ ] The simple power budget currently ignores bus voltages, distribution switches, discharge-rate limits, thermal behavior and priority circuits; replace with physically accurate electrical modeling as data becomes available.
