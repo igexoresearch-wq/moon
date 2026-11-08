@@ -14,12 +14,16 @@ $rcsUid='rcs-'.bin2hex(random_bytes(5));
  #<?=htmlspecialchars($rcsUid)?> .rcs-sep{height:1px;background:#72766f;margin:10px 0}
  #<?=htmlspecialchars($rcsUid)?> .rcs-pair{display:flex;gap:5px;justify-content:center}
  #<?=htmlspecialchars($rcsUid)?> .rcs-pair button{min-height:40px;min-width:106px}
+ #<?=htmlspecialchars($rcsUid)?> .rcs-power{display:flex;align-items:center;justify-content:center;gap:6px;margin:10px 0}
+ #<?=htmlspecialchars($rcsUid)?> .rcs-power button{min-width:46px;padding:7px}
+ #<?=htmlspecialchars($rcsUid)?> .rcs-power button.selected{background:#d4c56c}
  #<?=htmlspecialchars($rcsUid)?> .rcs-gauges{display:flex;justify-content:space-evenly;gap:12px;margin-top:12px}
  #<?=htmlspecialchars($rcsUid)?> .rcs-gauge{width:112px;height:112px;position:relative}
  #<?=htmlspecialchars($rcsUid)?> .rcs-gauge svg{width:100%;height:100%;display:block}
  #<?=htmlspecialchars($rcsUid)?> .rcs-needle{transform-origin:60px 60px;transform:rotate(-120deg)}
  </style>
  <div class="rcs-title">REACTION CONTROL SYSTEM</div>
+ <div class="rcs-power"><span>RCS POWER</span><button type="button" data-power="off">OFF</button><button type="button" data-power="on">ON</button></div>
  <div class="rcs-sub">ATTITUDE — PITCH / YAW</div>
  <div class="rcs-pad">
   <span></span><button data-axis="pitch" data-sign="1">PITCH +</button><span></span>
@@ -82,6 +86,9 @@ $rcsUid='rcs-'.bin2hex(random_bytes(5));
  if(!panel)return;
  const craft=Number(panel.dataset.craft);
  let busy=false;
+ async function refreshPower(){try{const r=await fetch("component_power.php?system=rcs&craft="+craft,{cache:"no-store"});if(!r.ok)return;const v=await r.json();for(const b of panel.querySelectorAll("[data-power]"))b.classList.toggle("selected",(b.dataset.power==="on")===v.on);}catch(e){}}
+ panel.querySelectorAll("[data-power]").forEach(b=>b.addEventListener("click",async()=>{try{await fetch("component_power.php?system=rcs&craft="+craft,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system:"rcs",craft,command:b.dataset.power})});await refreshPower();}catch(e){}}));
+ refreshPower();
  async function levels(){
   try{const r=await fetch('rcs_status.php?craft='+craft,{cache:'no-store'});
    if(!r.ok)return;const v=await r.json();
