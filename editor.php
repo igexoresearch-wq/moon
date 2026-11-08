@@ -39,11 +39,23 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 }
 $stmt=$conn->prepare('SELECT file_name,pos_x,pos_y FROM console_instruments WHERE console_id=? ORDER BY id');
 $stmt->bind_param('s',$console);$stmt->execute();$items=$stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-?><!doctype html><html><head><meta charset="utf-8"><title>Layout editor</title><style>body{background:#777;color:white;font:16px Arial}button{padding:7px;margin:3px}input{padding:7px}a{color:white}</style></head><body>
+?><!doctype html><html><head><meta charset="utf-8"><title>Layout editor</title><style>body{background:#777;color:white;font:16px Arial}button{padding:7px;margin:3px}input{padding:7px}a{color:white}.warning{background:#5a3624;border:1px solid #efbc6d;padding:10px;max-width:800px}</style></head><body>
 <h2><?=htmlspecialchars(STATIONS[$console])?> instrument layout</h2><p><a href="console.php?console=<?=urlencode($console)?>">Back to console</a></p>
 <?php foreach($items as $item):?><form method="post"><input type="hidden" name="csrf" value="<?=htmlspecialchars($_SESSION['moon_v2_csrf'])?>"><input type="hidden" name="file_name" value="<?=htmlspecialchars($item['file_name'])?>">
 <?=htmlspecialchars($item['file_name'])?> (<?=(int)$item['pos_x']?>, <?=(int)$item['pos_y']?>)
-<?php foreach(['up'=>'↑','down'=>'↓','left'=>'←','right'=>'→','remove'=>'Remove'] as $action=>$label):?><button name="action" value="<?=$action?>"><?=$label?></button><?php endforeach;?></form><?php endforeach;?>
+<?php foreach(['up'=>'↑','down'=>'↓','left'=>'←','right'=>'→'] as $action=>$label):?><button name="action" value="<?=$action?>"><?=$label?></button><?php endforeach;?><button name="action" value="remove" onclick="return confirm('WARNING: Remove <?=htmlspecialchars($item['file_name'],ENT_QUOTES)?> from this console layout? This does not delete the instrument file. You can restore it using the list below.')">Remove</button></form><?php endforeach;?>
+<h3>Restore an instrument</h3>
+<p>Removed instruments are not deleted from GitHub. Select an instrument below to add it back to this console. Existing instrument positions are not changed.</p>
+<?php if($available): ?>
+<form method="post">
+<input type="hidden" name="csrf" value="<?=htmlspecialchars($_SESSION['moon_v2_csrf'])?>">
+<select name="file_name" required>
+<?php foreach($available as $file): ?><option value="<?=htmlspecialchars($file,ENT_QUOTES)?>"><?=htmlspecialchars($file)?></option><?php endforeach; ?>
+</select>
+X <input name="x" type="number" value="20"> Y <input name="y" type="number" value="70">
+<button name="action" value="add">Restore instrument</button>
+</form>
+<?php else: ?><p>All available instruments are already assigned to this console.</p><?php endif; ?>
 <h3>Add existing instrument</h3><form method="post"><input type="hidden" name="csrf" value="<?=htmlspecialchars($_SESSION['moon_v2_csrf'])?>"><input name="file_name" placeholder="window.php or gauge.html" required><input name="x" type="number" value="20"><input name="y" type="number" value="70"><button name="action" value="add">Add</button></form>
 <p>For a new instrument, create a file in <code>v2/instruments/</code> then add its filename here. Existing instruments can be reused on any console.</p>
 <h3>Paste a new reusable instrument</h3>
