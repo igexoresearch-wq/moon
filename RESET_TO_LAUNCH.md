@@ -20,6 +20,7 @@
 | `reliability_random` | One 1–100000 roll, simulation tick, generated_at | **RESET** to a neutral roll / baseline and tick; do not preserve a stale random draw. |
 | `reliability_components` | Hardware catalog, spacecraft_id, hidden working/temporarily offline/permanently failed state, restore_at, last command, master flag, alarm_name | **RESET runtime condition/timestamps only**: state=1, state_since/restore_at/last_command_at to baseline. **PRESERVE** component_key, name, spacecraft_id, master, alarm_name, IDs and any later static metadata. |
 | `reliability_failures` | Historical failure records, unacknowledged alarms, recovery times, actual hidden failure classification | **CLEAR active mission failures** on reset. Optionally archive prior mission history elsewhere; do not leave unacknowledged alarms. |
+| `imu` | CM and LM estimated attitudes, independent reference axes, alignment timestamps and last processed tick | **RESTORE** estimated attitude and initial reference from final launch snapshot. Preserve installation and instrument layout. |
 | `rcs` | CM/SM/LM RCS fuel and oxidizer masses, thrust configuration, model inertia, system enabled state | **RESTORE** launch fuel/oxidizer and enabled state. **PRESERVE** calibrated hardware specifications, craft ownership and IDs. Current RCS seed values are placeholders. |
 | `console_instruments` | Instruments assigned to stations, pos_x/pos_y | **PRESERVE**. Editing layout must survive reset. |
 | `instrument_sources` | Pasted HTML instrument code and dimensions | **PRESERVE**. Reset must never delete custom instrument definitions. |
@@ -116,3 +117,11 @@ When adding code, explicitly ask:
 - Schema/seed consistency must be checked when the full final launch baseline is designed; do not use installer scripts as a substitute for reset.
 
 **Maintenance instruction:** This is the canonical tracking document for eventual **reset to launch**. Update it during development; do not invent a launch snapshot or implement a destructive reset before those details are agreed.
+
+### IMU and eight-ball (2026-11-07)
+- [ ] Restore `imu` rows for CM (object 3) and LM ascent (object 6) to deliberately specified initial orientation, alignment and `last_tick`.
+- [ ] Never replace actual `objects` orientation or rates with values from IMU.
+- [ ] The current IMU one-second estimator rounds each angular rate to **five decimal places** and integrates the result; the display rounds angles to tenths.
+- [ ] Current component-angle integration is an approximate three-axis model, not a full rigid-body gyro/gimbal model. It may produce error at coupled rotations; true Apollo drift/noise not yet simulated.
+- [ ] `imu_align.php` is a **development-only shortcut** to copy current true orientation into the estimate, not historical star alignment. Future optics procedure must replace it.
+- [ ] Preserve movable `eight_ball.php` layout in CM and LM Commander consoles.
