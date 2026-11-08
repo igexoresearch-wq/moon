@@ -40,7 +40,12 @@ void main(){
    nearest=dist;hit=i;normal=normalize(direction*dist-center);
   }
  }
- if(hit<0){gl_FragColor=vec4(0.002,0.004,0.009,1.);return;}
+ if(hit<0){
+  if(vPoint.x>0.67 && vPoint.y< -0.67 && uEarthReady>0.5){
+   gl_FragColor=vec4(texture2D(uEarth,(vPoint-vec2(0.67,-1.0))/vec2(0.33,0.33)).rgb,1.);return;
+  }
+  gl_FragColor=vec4(0.002,0.004,0.009,1.);return;
+ }
  vec3 color=vec3(0.7);
  for(int i=0;i<16;i++){if(i==hit){color=uColors[i];break;}}
  float longitude=atan(normal.z,normal.x);
@@ -52,6 +57,10 @@ void main(){
  vec3 moonPixel=texture2D(uMoon,uv).rgb;
  if(hit==0 && uEarthReady>0.5)color=earthPixel;
  else if(hit==1 && uMoonReady>0.5)color=moonPixel;
+ // GPU texture verification patch: a small square of raw Earth pixels.
+ if(vPoint.x>0.67 && vPoint.y< -0.67 && uEarthReady>0.5){
+  gl_FragColor=vec4(texture2D(uEarth,(vPoint-vec2(0.67,-1.0))/vec2(0.33,0.33)).rgb,1.);return;
+ }
  float daylight=0.18+0.82*max(0.,dot(normal,normalize(vec3(0.8,0.3,0.45))));
  gl_FragColor=vec4(color*daylight,1.);
 }`;
@@ -65,8 +74,16 @@ function loadImageTexture(gl,path,unit){
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
  image.onload=()=>{gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
-  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,image);
-  const err=gl.getError();if(err!==gl.NO_ERROR){result.error=true;return;}result.ready=true;};
+  // Normalize the browser-decoded image through a 2D canvas. This removes
+  // JPEG decoding / color-space upload differences between drivers.
+  const surface=document.createElement('canvas');surface.width=1024;surface.height=512;
+  const ctx=surface.getContext('2d',{willReadFrequently:true});
+  if(!ctx){result.error=true;return;}
+  ctx.drawImage(image,0,0,surface.width,surface.height);
+  gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL,gl.NONE);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,surface);
+  const err=gl.getError();if(err!==gl.NO_ERROR){result.error=true;result.errorCode=err;return;}
+  result.ready=true;};
  image.onerror=()=>{result.error=true;};
  image.src=path;return result;
 }
