@@ -47,11 +47,11 @@ CREATE TABLE IF NOT EXISTS sim_clock (
 -- SI units throughout: meters, seconds, kg, degrees, degrees/second.
 -- Moon 1018 m/s; CSM speed calculated using GM/r = 7353.8 m/s.
 INSERT INTO objects
-(id,name,dry_mass,radius_length,x,y,z,delta_x,delta_y,delta_z,dependency,dependent,active,offset_distance,yaw_rate)
+(id,name,dry_mass,radius_length,x,y,z,delta_x,delta_y,delta_z,dependency,dependent,active,offset_distance)
 VALUES
-(1,'Earth',5.9723e24,6371000,0,0,0,0,0,0,NULL,0,1,0,0.0041780746),
-(2,'Moon',7.342e22,1737400,384400000,0,0,0,1018.3,0,NULL,0,1,0,0),
-(3,'Command Module',5560,3.9,7371000,0,0,0,7354.3,0,NULL,0,1,0,0),
+(1,'Earth',5.9723e24,6371000,0,0,0,0,0,0,NULL,0,1,0),
+(2,'Moon',7.342e22,1737400,384400000,0,0,0,1018.3,0,NULL,0,1,0),
+(3,'Command Module',5560,3.9,7371000,0,0,0,7354.3,0,NULL,0,1,0),
 (4,'Service Module',6100,7.5,7370997,0,0,0,7354.3,0,3,1,1,3,0),
 (5,'Launch Escape Tower',3600,10,0,0,0,0,0,0,3,1,0,4,0),
 (6,'LM Ascent Stage',2150,3,0,0,0,0,0,0,7,1,0,3,0),
