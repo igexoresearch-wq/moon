@@ -40,12 +40,7 @@ void main(){
    nearest=dist;hit=i;normal=normalize(direction*dist-center);
   }
  }
- if(hit<0){
-  if(vPoint.x>0.67 && vPoint.y< -0.67 && uEarthReady>0.5){
-   gl_FragColor=vec4(texture2D(uEarth,(vPoint-vec2(0.67,-1.0))/vec2(0.33,0.33)).rgb,1.);return;
-  }
-  gl_FragColor=vec4(0.002,0.004,0.009,1.);return;
- }
+ if(hit<0){gl_FragColor=vec4(0.002,0.004,0.009,1.);return;}
  vec3 color=vec3(0.7);
  for(int i=0;i<16;i++){if(i==hit){color=uColors[i];break;}}
  float longitude=atan(normal.z,normal.x);
@@ -57,10 +52,6 @@ void main(){
  vec3 moonPixel=texture2D(uMoon,uv).rgb;
  if(hit==0 && uEarthReady>0.5)color=earthPixel;
  else if(hit==1 && uMoonReady>0.5)color=moonPixel;
- // GPU texture verification patch: a small square of raw Earth pixels.
- if(vPoint.x>0.67 && vPoint.y< -0.67 && uEarthReady>0.5){
-  gl_FragColor=vec4(texture2D(uEarth,(vPoint-vec2(0.67,-1.0))/vec2(0.33,0.33)).rgb,1.);return;
- }
  float daylight=0.18+0.82*max(0.,dot(normal,normalize(vec3(0.8,0.3,0.45))));
  gl_FragColor=vec4(color*daylight,1.);
 }`;
@@ -124,7 +115,15 @@ export function startOpticalWindow(canvasId,observerId){
   const basis=cameraBasis(self),centers=[],colors=[],radii=[];
   // Always reserve texture slots 0/1 for Earth/Moon. Objects not present
   // in telemetry are not added, and slots are not inferred from shader IDs.
-  const visible=objects.filter(x=>Number(x.id)!==observerId).sort((a,b)=>Number(a.id)-Number(b.id)).slice(0,16);
+  // The CM camera is inside the attached SM's coarse collision sphere.
+  // Exclude any small spacecraft component enclosing the observer; otherwise
+  // its solid color masks Earth regardless of a valid Earth texture.
+  const visible=objects.filter(x=>{
+   if(Number(x.id)===observerId)return false;
+   const distance=Math.hypot(Number(x.x)-Number(self.x),Number(x.y)-Number(self.y),Number(x.z)-Number(self.z));
+   if(Number(x.id)>2 && distance<=Math.max(0,Number(x.radius_length)))return false;
+   return true;
+  }).sort((a,b)=>Number(a.id)-Number(b.id)).slice(0,16);
   for(const object of visible){
    centers.push((Number(object.x)-Number(self.x))*.001,(Number(object.y)-Number(self.y))*.001,(Number(object.z)-Number(self.z))*.001);
    radii.push(Math.max(.0001,Number(object.radius_length)*.001));
