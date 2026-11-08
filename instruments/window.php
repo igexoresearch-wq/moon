@@ -3,9 +3,21 @@
 // All graphics are rendered here; the console page never reloads.
 $windowId='optical-'.bin2hex(random_bytes(6));
 ?>
-<div style="width:600px;height:600px;position:relative;background:#000;border:6px solid #444;box-sizing:border-box;overflow:hidden">
-  <canvas id="<?=htmlspecialchars($windowId,ENT_QUOTES)?>" width="588" height="588" style="display:block;width:100%;height:100%"></canvas>
-  <div id="<?=htmlspecialchars($windowId,ENT_QUOTES)?>-status" style="position:absolute;top:9px;left:9px;right:9px;color:#dfffcf;background:rgba(0,0,0,.7);padding:5px;font:13px monospace;pointer-events:none">3D WINDOW INITIALIZING…</div>
+<div style="width:400px;height:400px;position:relative;background:#000;overflow:hidden;clip-path:polygon(0 75%,100% 25%,100% 100%,0 100%)">
+  <canvas id="<?=htmlspecialchars($windowId,ENT_QUOTES)?>" width="400" height="400" style="display:block;width:400px;height:400px"></canvas>
+  <svg viewBox="0 0 400 400" width="400" height="400" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none">
+    <!-- Four-sided sloping CM viewport border. -->
+    <path d="M 0 300 L 400 100 L 400 400 L 0 400 Z" fill="none" stroke="#555" stroke-width="6"/>
+    <!-- Five-degree pitch reference marks along the right-hand edge;
+         long ticks mark 10 degrees. Vertical optical FOV: 45 degrees. -->
+    <?php for($degree=10;$degree>=-20;$degree-=5):
+       $y=200-$degree*(400/45);
+       $length=($degree%10===0)?19:10;
+    ?>
+    <line x1="<?=400-$length?>" y1="<?=round($y,2)?>" x2="397" y2="<?=round($y,2)?>" stroke="#a6afa8" stroke-width="2"/>
+    <?php endfor; ?>
+  </svg>
+  <div id="<?=htmlspecialchars($windowId,ENT_QUOTES)?>-status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap">3D WINDOW INITIALIZING…</div>
 </div>
 <script type="module">
 const id=<?=json_encode($windowId)?>;
