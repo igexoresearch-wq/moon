@@ -52,9 +52,11 @@ function moonElectricalTick(mysqli $db,int $tick):void {
  }
  // When a battery is empty, no further deficit is removed from below zero.
  // Alarm remains active until electrical conditions recover, even after acknowledgement.
- $update=$db->prepare('UPDATE electrical_alarms SET active=?,acknowledged=IF(active=?,acknowledged,0),updated_tick=? WHERE craft_id=3 AND alarm_key=?');
- foreach(['BUS UNDERVOLT'=>$undervolt,'LOAD SHED'=>$shed||($current>0 && !$active)] as $key=>$flag){
-  $val=$flag?1:0;$prior=$flag?1:0;
-  $update->bind_param('iiis',$val,$prior,$tick,$key);$update->execute();
+ $anyShed=$shed;
+ foreach($c as $row)if((int)$row['auto_shed']===1)$anyShed=true;
+ $update=$db->prepare('UPDATE electrical_alarms SET acknowledged=IF(active=0 AND ?=1,0,acknowledged),active=?,updated_tick=? WHERE craft_id=3 AND alarm_key=?');
+ foreach(['BUS UNDERVOLT'=>$undervolt,'LOAD SHED'=>$anyShed||($current>0 && !$active)] as $key=>$flag){
+  $val=$flag?1:0;
+  $update->bind_param('iiis',$val,$val,$tick,$key);$update->execute();
  }
 }
