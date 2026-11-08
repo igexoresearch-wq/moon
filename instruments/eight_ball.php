@@ -11,11 +11,15 @@ $ballUid='fdai-'.bin2hex(random_bytes(5));
 #<?=htmlspecialchars($ballUid)?> .fdai-rates{display:flex;justify-content:space-between;font-family:monospace;margin:9px 0;gap:3px}
 #<?=htmlspecialchars($ballUid)?> .fdai-rates span{background:#232723;padding:5px;font-size:12px}
 #<?=htmlspecialchars($ballUid)?> button{display:block;margin:8px auto 0;background:#9a9a90;border:3px solid #252725;padding:8px 15px;font-weight:bold;cursor:pointer}
+#<?=htmlspecialchars($ballUid)?> .fdai-power{display:flex;justify-content:center;align-items:center;gap:8px;margin:8px}
+#<?=htmlspecialchars($ballUid)?> .fdai-power button{margin:0;min-width:48px}
+#<?=htmlspecialchars($ballUid)?> .fdai-power button.selected{background:#d4c56c}
 #<?=htmlspecialchars($ballUid)?> .fdai-foot{text-align:center;opacity:.8;font-size:10px;margin-top:5px}
 </style>
 <div class="fdai-heading">FLIGHT DIRECTOR ATTITUDE INDICATOR</div>
 <canvas width="520" height="520" aria-label="Eight-ball attitude indicator"></canvas>
 <div class="fdai-rates"><span>R <b data-r>000.0</b></span><span>P <b data-p>000.0</b></span><span>Y <b data-y>000.0</b></span></div>
+<div class="fdai-power"><span>IMU POWER</span><button type="button" data-power="off">OFF</button><button type="button" data-power="on">ON</button></div>
 <button type="button" data-align>IMU ALIGN</button>
 <div class="fdai-foot">DEVELOPMENT ALIGNMENT CONTROL</div>
 </div>
@@ -55,6 +59,8 @@ for(const [key,val] of [['r',roll],['p',pitch],['y',yaw]]){
  root.querySelector('[data-'+key+']').textContent=((val%360)+360)%360<0?'000.0':(((val%360)+360)%360).toFixed(1).padStart(5,'0');
 }
 }
+async function refreshPower(){try{const r=await fetch('component_power.php?system=imu&craft='+craft,{cache:'no-store'});if(!r.ok)return;const v=await r.json();root.querySelectorAll('[data-power]').forEach(b=>b.classList.toggle('selected',(b.dataset.power==='on')===v.on));}catch(e){}}
+root.querySelectorAll('[data-power]').forEach(b=>b.addEventListener('click',async()=>{try{await fetch('component_power.php?system=imu&craft='+craft,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'imu',craft,command:b.dataset.power})});await refreshPower();}catch(e){}}));
 async function poll(){try{
  const res=await fetch('imu_status.php?craft='+craft,{cache:'no-store'});if(!res.ok)return;
  last=await res.json();draw(last);
@@ -63,7 +69,7 @@ root.querySelector('[data-align]').addEventListener('click',async()=>{
  if(!window.confirm('Simulator shortcut: realign IMU estimate to the true spacecraft attitude?'))return;
  try{let r=await fetch('imu_align.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({craft})});if(r.ok)await poll();}catch(e){}
 });
-draw(last);poll();const timer=setInterval(poll,1000);
+draw(last);poll();refreshPower();const timer=setInterval(()=>{poll();refreshPower();},1000);
 window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
 })();
 </script>
