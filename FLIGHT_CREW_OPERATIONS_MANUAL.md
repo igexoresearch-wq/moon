@@ -228,3 +228,15 @@ The CM and LM have independent RCS group and IMU power selectors. **ON** changes
 
 ### Reliability patterns
 RCS direction commands preserve their earlier user-selected activation bands. IMU sampling, once per simulation second when powered and operational, checks the current shared 1–100000 random value. Values **below 100** ending in **3** cause a temporary fault; values below 100 ending in **4** cause a permanent fault. These are simulation-specific decisions and must not be presented as NASA measured failure rates. Every future component needs an explicit electrical load and its own approved reliability rule.
+
+
+## SERVICE MODULE FUEL CELLS — FLIGHT CREW SUPPLEMENT
+**Applicable station:** CM Commander only. **Instrument:** independent `instruments/fuel_cells.php` with three analog ammeters and separate ON/OFF switches.
+
+Each service-module fuel cell is modeled as a generator of **−50 A** in the simulator's signed electrical-load convention. Its cockpit gauge indicates **50 A output** at nominal operation and zero when off or unavailable; the negative database sign means power generation and is not a negative needle position. Real Apollo fuel-cell current varied with demand; this is an initial fixed-output simulator abstraction, not a historical NASA electrical curve.
+
+An ON switch takes state 4 (intentionally OFF) to state 1 (working) only while the CM and SM remain mated. OFF changes a working cell from state 1 to state 4. A temporary or permanent failed component (2 or 3) cannot be repaired by cycling the switch. Each fuel cell's Master Caution lamp is separate in the CM/SM alarm panel; OFF is not a fault.
+
+The once-per-second fuel-cell logic evaluates the common 1–100000 random roll when the cell is operating. For temporary failures, cell 1 uses **10–20**, cell 2 **21–40**, cell 3 **41–50**; permanent failure occurs at **501**, **502**, **503** respectively. The boundary allocation avoids overlapping triggers at 20 and 40. Temporary failure lasts a randomly selected 60–3600 seconds in the current wall-clock-based reliability implementation. The user-selected probabilities are not historical failure data.
+
+**CAUTION — CM/SM SEPARATION:** The SM supplies the three fuel cells. When the SM ceases to be mated with the CM, any fuel cell not in the intentionally OFF position fails permanently and an event is recorded. **Switch all three fuel cells OFF before separation.** Reattaching a module will not reset a permanent failure. This rule is a simulator-specific operational consequence, not a statement about actual Apollo fuel-cell design. The future electrical bus will have to transfer the CM to its appropriate batteries before SM separation.
