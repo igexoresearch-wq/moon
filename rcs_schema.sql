@@ -4,7 +4,9 @@ CREATE TABLE IF NOT EXISTS rcs (
  craft_id INT UNSIGNED NOT NULL UNIQUE,
  system_name VARCHAR(80) NOT NULL,
  fuel_kg DOUBLE NOT NULL,
+ fuel_capacity_kg DOUBLE NOT NULL,
  oxidizer_kg DOUBLE NOT NULL,
+ oxidizer_capacity_kg DOUBLE NOT NULL,
  dry_fuel_kg DOUBLE NOT NULL DEFAULT 0,
  dry_oxidizer_kg DOUBLE NOT NULL DEFAULT 0,
  thrust_n DOUBLE NOT NULL,
@@ -17,10 +19,10 @@ CREATE TABLE IF NOT EXISTS rcs (
 ) ENGINE=InnoDB;
 -- Approximate starting quantities / inertial models are configurable;
 -- not claims of exact Apollo launch loading.
-INSERT IGNORE INTO rcs (craft_id,system_name,fuel_kg,oxidizer_kg,thrust_n,isp_s,torque_arm_m,inertia_kg_m2)
-VALUES (4,'SM RCS',200,300,445,289,3.0,80000),
-       (3,'CM RCS',35,55,410,250,1.5,30000),
-       (6,'LM RCS',125,195,445,290,2.0,16000);
+INSERT IGNORE INTO rcs (craft_id,system_name,fuel_kg,fuel_capacity_kg,oxidizer_kg,oxidizer_capacity_kg,thrust_n,isp_s,torque_arm_m,inertia_kg_m2)
+VALUES (4,'SM RCS',200,200,300,300,445,289,3.0,80000),
+       (3,'CM RCS',35,35,55,55,410,250,1.5,30000),
+       (6,'LM RCS',125,125,195,195,445,290,2.0,16000);
 -- Each discrete direction has an independent reliability record.
 INSERT IGNORE INTO reliability_components (component_key,component_name,spacecraft_id)
 VALUES
