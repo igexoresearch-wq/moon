@@ -3,11 +3,11 @@
 // All graphics are rendered here; the console page never reloads.
 $windowId='optical-'.bin2hex(random_bytes(6));
 ?>
-<div style="width:400px;height:400px;position:relative;background:#000;overflow:hidden;clip-path:polygon(0 75%,100% 25%,100% 100%,0 100%)">
+<div style="width:400px;height:400px;position:relative;background:#000;overflow:hidden;clip-path:polygon(0 75%,75% 0,100% 0,100% 100%,0 100%)">
   <canvas id="<?=htmlspecialchars($windowId,ENT_QUOTES)?>" width="400" height="400" style="display:block;width:400px;height:400px"></canvas>
   <svg viewBox="0 0 400 400" width="400" height="400" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none">
-    <!-- Four-sided sloping CM viewport border. -->
-    <path d="M 0 300 L 400 100 L 400 400 L 0 400 Z" fill="none" stroke="#555" stroke-width="6"/>
+    <!-- Clipped-corner CM viewport border. -->
+    <path d="M 0 300 L 300 0 L 400 0 L 400 400 L 0 400 Z" fill="none" stroke="#555" stroke-width="6"/>
     <!-- Five-degree pitch reference marks along the right-hand edge;
          long ticks mark 10 degrees. Vertical optical FOV: 45 degrees. -->
     <?php for($degree=10;$degree>=-20;$degree-=5):
