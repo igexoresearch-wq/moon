@@ -23,6 +23,7 @@ uniform float uRadii[16];
 uniform int uCount;
 uniform sampler2D uEarth,uMoon;
 uniform float uEarthReady,uMoonReady;
+uniform int uTypes[16];
 const float FAR=1.0e12;
 void main(){
  vec3 direction=normalize(uForward+vPoint.x*uRight+vPoint.y*uUp);
@@ -43,8 +44,10 @@ void main(){
  if(hit<0){gl_FragColor=vec4(0.002,0.004,0.009,1.);return;}
  vec3 color=uColors[0];float tex=0.;
  for(int i=0;i<16;i++){if(i==hit){color=uColors[i];break;}}
- if(hit==0 && uEarthReady>0.5)tex=1.;
- if(hit==1 && uMoonReady>0.5)tex=2.;
+ int objectType=-1;
+ for(int i=0;i<16;i++){if(i==hit){objectType=uTypes[i];break;}}
+ if(objectType==1 && uEarthReady>0.5)tex=1.;
+ if(objectType==2 && uMoonReady>0.5)tex=2.;
  float longitude=atan(normal.z,normal.x);
  float latitude=asin(clamp(normal.y,-1.,1.));
  vec2 uv=vec2(0.5+longitude/6.28318530718,0.5-latitude/3.14159265359);
@@ -54,16 +57,19 @@ void main(){
  gl_FragColor=vec4(color*daylight,1.);
 }`;
 function loadImageTexture(gl,path,unit){
- const result={ready:false,error:false};
+ const result={ready:false,error:false,texture:null};
  const image=new Image();
- const tex=gl.createTexture();gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,tex);
+ const tex=gl.createTexture();result.texture=tex;gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,tex);
  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([150,160,170,255]));
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+ gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_BASE_LEVEL,0);
+ gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAX_LEVEL,0);
  image.onload=()=>{gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
-  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,image);result.ready=true;};
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,image);
+  const err=gl.getError();if(err!==gl.NO_ERROR){result.error=true;return;}result.ready=true;};
  image.onerror=()=>{result.error=true;};
  image.src=path;return result;
 }
@@ -82,7 +88,7 @@ export function startOpticalWindow(canvasId,observerId){
  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
  const loc=gl.getAttribLocation(program,'aPoint');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
  const u=name=>gl.getUniformLocation(program,name);
- const U={forward:u('uForward'),right:u('uRight'),up:u('uUp'),centers:u('uCenters[0]'),colors:u('uColors[0]'),radii:u('uRadii[0]'),count:u('uCount'),earthReady:u('uEarthReady'),moonReady:u('uMoonReady')};
+ const U={forward:u('uForward'),right:u('uRight'),up:u('uUp'),centers:u('uCenters[0]'),colors:u('uColors[0]'),radii:u('uRadii[0]'),count:u('uCount'),earthReady:u('uEarthReady'),moonReady:u('uMoonReady'),types:u('uTypes[0]')};
  gl.uniform1i(u('uEarth'),0);gl.uniform1i(u('uMoon'),1);
  const earth=loadImageTexture(gl,'textures/earth.jpg',0),moon=loadImageTexture(gl,'textures/moon.jpg',1);
  let state=null,loading=false,lastUpdate=0;
@@ -101,13 +107,13 @@ export function startOpticalWindow(canvasId,observerId){
    status.textContent='SPACECRAFT INACTIVE — NO LIVE WINDOW VIEW';
    return;
   }
-  const basis=cameraBasis(self),centers=[],colors=[],radii=[];
+  const basis=cameraBasis(self),centers=[],colors=[],radii=[],types=[];
   const visible=objects.filter(x=>Number(x.id)!==observerId).sort((a,b)=>Number(a.id)-Number(b.id)).slice(0,16);
   for(const object of visible){
    centers.push((Number(object.x)-Number(self.x))*.001,(Number(object.y)-Number(self.y))*.001,(Number(object.z)-Number(self.z))*.001);
    radii.push(Math.max(.0001,Number(object.radius_length)*.001));
    const c=Number(object.id)===1?[.16,.38,.8]:Number(object.id)===2?[.72,.7,.67]:[.8,.8,.75];
-   colors.push(...c);
+   colors.push(...c);types.push(Number(object.id));
   }
   // Shader needs Earth at slot 0, Moon at slot 1, irrespective of other objects.
   const earthObj=visible.find(x=>Number(x.id)===1),moonObj=visible.find(x=>Number(x.id)===2);
@@ -119,8 +125,12 @@ export function startOpticalWindow(canvasId,observerId){
   gl.viewport(0,0,canvas.width,canvas.height);gl.useProgram(program);
   gl.uniform3fv(U.forward,new Float32Array(basis.forward));gl.uniform3fv(U.right,new Float32Array(basis.right));gl.uniform3fv(U.up,new Float32Array(basis.up));
   gl.uniform3fv(U.centers,new Float32Array(centers));gl.uniform3fv(U.colors,new Float32Array(colors));
-  gl.uniform1fv(U.radii,new Float32Array(radii));gl.uniform1i(U.count,visible.length);
+  gl.uniform1fv(U.radii,new Float32Array(radii));gl.uniform1iv(U.types,new Int32Array(types));gl.uniform1i(U.count,visible.length);
   gl.uniform1f(U.earthReady,earth.ready?1:0);gl.uniform1f(U.moonReady,moon.ready?1:0);
+  // Rebind textures explicitly before rendering; never rely on the active
+  // texture state left over from asynchronous image onload handlers.
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,earth.texture);
+  gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,moon.texture);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   const error=gl.getError();
   if(error!==gl.NO_ERROR){status.textContent='WEBGL ERROR '+error;return;}
