@@ -23,7 +23,6 @@ uniform float uRadii[16];
 uniform int uCount;
 uniform sampler2D uEarth,uMoon;
 uniform float uEarthReady,uMoonReady;
-uniform int uTypes[16];
 const float FAR=1.0e12;
 void main(){
  vec3 direction=normalize(uForward+vPoint.x*uRight+vPoint.y*uUp);
@@ -42,17 +41,17 @@ void main(){
   }
  }
  if(hit<0){gl_FragColor=vec4(0.002,0.004,0.009,1.);return;}
- vec3 color=uColors[0];float tex=0.;
+ vec3 color=vec3(0.7);
  for(int i=0;i<16;i++){if(i==hit){color=uColors[i];break;}}
- int objectType=-1;
- for(int i=0;i<16;i++){if(i==hit){objectType=uTypes[i];break;}}
- if(objectType==1 && uEarthReady>0.5)tex=1.;
- if(objectType==2 && uMoonReady>0.5)tex=2.;
  float longitude=atan(normal.z,normal.x);
  float latitude=asin(clamp(normal.y,-1.,1.));
- vec2 uv=vec2(0.5+longitude/6.28318530718,0.5-latitude/3.14159265359);
- if(tex==1.)color=texture2D(uEarth,uv).rgb;
- if(tex==2.)color=texture2D(uMoon,uv).rgb;
+ vec2 uv=vec2(fract(0.5+longitude/6.28318530718),clamp(0.5-latitude/3.14159265359,0.001,0.999));
+ // In WebGL 1 both samplers must be evaluated in uniform control flow.
+ // Sampling inside per-pixel hit branches can give undefined texture results.
+ vec3 earthPixel=texture2D(uEarth,uv).rgb;
+ vec3 moonPixel=texture2D(uMoon,uv).rgb;
+ if(hit==0 && uEarthReady>0.5)color=earthPixel;
+ else if(hit==1 && uMoonReady>0.5)color=moonPixel;
  float daylight=0.18+0.82*max(0.,dot(normal,normalize(vec3(0.8,0.3,0.45))));
  gl_FragColor=vec4(color*daylight,1.);
 }`;
@@ -86,7 +85,7 @@ export function startOpticalWindow(canvasId,observerId){
  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
  const loc=gl.getAttribLocation(program,'aPoint');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
  const u=name=>gl.getUniformLocation(program,name);
- const U={forward:u('uForward'),right:u('uRight'),up:u('uUp'),centers:u('uCenters[0]'),colors:u('uColors[0]'),radii:u('uRadii[0]'),count:u('uCount'),earthReady:u('uEarthReady'),moonReady:u('uMoonReady'),types:u('uTypes[0]')};
+ const U={forward:u('uForward'),right:u('uRight'),up:u('uUp'),centers:u('uCenters[0]'),colors:u('uColors[0]'),radii:u('uRadii[0]'),count:u('uCount'),earthReady:u('uEarthReady'),moonReady:u('uMoonReady')};
  gl.uniform1i(u('uEarth'),0);gl.uniform1i(u('uMoon'),1);
  const earth=loadImageTexture(gl,'textures/earth.jpg',0),moon=loadImageTexture(gl,'textures/moon.jpg',1);
  let state=null,loading=false,lastUpdate=0;
@@ -105,13 +104,15 @@ export function startOpticalWindow(canvasId,observerId){
    status.textContent='SPACECRAFT INACTIVE — NO LIVE WINDOW VIEW';
    return;
   }
-  const basis=cameraBasis(self),centers=[],colors=[],radii=[],types=[];
+  const basis=cameraBasis(self),centers=[],colors=[],radii=[];
+  // Always reserve texture slots 0/1 for Earth/Moon. Objects not present
+  // in telemetry are not added, and slots are not inferred from shader IDs.
   const visible=objects.filter(x=>Number(x.id)!==observerId).sort((a,b)=>Number(a.id)-Number(b.id)).slice(0,16);
   for(const object of visible){
    centers.push((Number(object.x)-Number(self.x))*.001,(Number(object.y)-Number(self.y))*.001,(Number(object.z)-Number(self.z))*.001);
    radii.push(Math.max(.0001,Number(object.radius_length)*.001));
    const c=Number(object.id)===1?[.16,.38,.8]:Number(object.id)===2?[.72,.7,.67]:[.8,.8,.75];
-   colors.push(...c);types.push(Number(object.id));
+   colors.push(...c);
   }
   // Shader needs Earth at slot 0, Moon at slot 1, irrespective of other objects.
   const earthObj=visible.find(x=>Number(x.id)===1),moonObj=visible.find(x=>Number(x.id)===2);
@@ -123,7 +124,7 @@ export function startOpticalWindow(canvasId,observerId){
   gl.viewport(0,0,canvas.width,canvas.height);gl.useProgram(program);
   gl.uniform3fv(U.forward,new Float32Array(basis.forward));gl.uniform3fv(U.right,new Float32Array(basis.right));gl.uniform3fv(U.up,new Float32Array(basis.up));
   gl.uniform3fv(U.centers,new Float32Array(centers));gl.uniform3fv(U.colors,new Float32Array(colors));
-  gl.uniform1fv(U.radii,new Float32Array(radii));gl.uniform1iv(U.types,new Int32Array(types));gl.uniform1i(U.count,visible.length);
+  gl.uniform1fv(U.radii,new Float32Array(radii));gl.uniform1i(U.count,visible.length);
   gl.uniform1f(U.earthReady,earth.ready?1:0);gl.uniform1f(U.moonReady,moon.ready?1:0);
   // Rebind textures explicitly before rendering; never rely on the active
   // texture state left over from asynchronous image onload handlers.
