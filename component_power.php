@@ -24,7 +24,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   elseif($command==='on' && $state===4)$new=1;
   else $new=$state; // 2 / 3 are faults, not resettable by switch
   if($new!==$state){
-   $q=$conn->prepare('UPDATE reliability_components SET state=?,state_since=NOW() WHERE component_key=?');
+   $q=$conn->prepare('UPDATE reliability_components SET state=?,auto_shed=0,state_since=NOW() WHERE component_key=?');
    $q->bind_param('is',$new,$key);$q->execute();
    if($system==='rcs'){
     // Only healthy/off thrusters follow the cluster switch; 2/3 faults persist.
