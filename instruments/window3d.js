@@ -25,7 +25,8 @@ uniform sampler2D uEarth,uMoon;
 uniform float uEarthReady,uMoonReady;
 const float FAR=1.0e12;
 void main(){
- vec3 direction=normalize(uForward+vPoint.x*uRight+vPoint.y*uUp);
+ // 45-degree square angular field, preserving the real camera center.
+ vec3 direction=normalize(uForward+0.41421356237*(vPoint.x*uRight+vPoint.y*uUp));
  float nearest=FAR;int hit=-1;vec3 normal=vec3(0.);
  for(int i=0;i<16;i++){
   if(i>=uCount)break;
