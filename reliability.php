@@ -57,8 +57,8 @@ function moonReliabilityCommand(mysqli $db,string $key,string $operation='activa
         elseif($slot<=15){$type='temporary';$duration=random_int(60,3600);$nextState=2;}
         elseif($slot===16 && $block<5){$type='permanent';$nextState=3;}
     }elseif($rule==='imu_suffix_under_100' && $roll<100){
-        if($roll%10===1){$type='temporary';$duration=random_int(60,3600);$nextState=2;}
-        elseif($roll%10===2){$type='permanent';$nextState=3;}
+        if($roll%10===3){$type='temporary';$duration=random_int(60,3600);$nextState=2;}
+        elseif($roll%10===4){$type='permanent';$nextState=3;}
     }
 
     if($type!==null){
