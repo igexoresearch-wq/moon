@@ -13,7 +13,7 @@ function basis(o){
 }
 function shader(gl,kind,src){const s=gl.createShader(kind);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
 function program(gl){
- const vertex=`attribute vec3 aPos;attribute vec2 aUV;uniform vec3 uCenter;uniform float uRadius;uniform vec3 uRight,uUp,uForward;uniform float uFocal;varying vec2 vUV;varying vec3 vNormal;void main(){vec3 world=uCenter+aPos*uRadius;float depth=dot(world,uForward);float x=dot(world,uRight),y=dot(world,uUp);gl_Position=vec4(x*uFocal,y*uFocal,depth-0.002,depth);vUV=aUV;vNormal=aPos;}`;
+ const vertex=`attribute vec3 aPos;attribute vec2 aUV;uniform vec3 uCenter;uniform float uRadius;uniform vec3 uRight,uUp,uForward;uniform float uFocal;varying vec2 vUV;varying vec3 vNormal;void main(){vec3 world=uCenter+aPos*uRadius;float depth=dot(world,uForward);float x=dot(world,uRight),y=dot(world,uUp);gl_Position=vec4(x*uFocal,y*uFocal,0.5*depth,depth);vUV=aUV;vNormal=aPos;}`;
  const fragment=`precision mediump float;varying vec2 vUV;varying vec3 vNormal;uniform sampler2D uTex;uniform vec3 uTint;uniform float uHasTex;void main(){vec3 base=mix(uTint,texture2D(uTex,vUV).rgb,uHasTex);float light=0.27+0.73*max(dot(normalize(vNormal),normalize(vec3(0.65,0.32,0.55))),0.0);gl_FragColor=vec4(base*light,1.0);}`;
  const p=gl.createProgram();gl.attachShader(p,shader(gl,gl.VERTEX_SHADER,vertex));gl.attachShader(p,shader(gl,gl.FRAGMENT_SHADER,fragment));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(p));return p;
 }
