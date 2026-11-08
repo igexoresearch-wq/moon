@@ -15,7 +15,6 @@ $rcsUid='rcs-'.bin2hex(random_bytes(5));
  #<?=htmlspecialchars($rcsUid)?> .rcs-pair{display:flex;gap:5px;justify-content:center}
  #<?=htmlspecialchars($rcsUid)?> .rcs-pair button{min-height:40px;min-width:106px}
  #<?=htmlspecialchars($rcsUid)?> .rcs-level{display:flex;justify-content:space-between;margin-top:9px;color:#e1dcb5;font:12px monospace}
- #<?=htmlspecialchars($rcsUid)?> .rcs-status{min-height:17px;margin-top:9px;text-align:center;color:#cfcfcf}
  </style>
  <div class="rcs-title">REACTION CONTROL SYSTEM</div>
  <div class="rcs-sub">ATTITUDE — PITCH / YAW</div>
@@ -36,13 +35,12 @@ $rcsUid='rcs-'.bin2hex(random_bytes(5));
  <div class="rcs-sub">TRANSLATION — UP / DOWN</div>
  <div class="rcs-pair"><button data-axis="vertical" data-sign="1">UP</button><button data-axis="vertical" data-sign="-1">DOWN</button></div>
  <div class="rcs-level"><span>FUEL: <b class="rcs-fuel">—</b> kg</span><span>OXIDIZER: <b class="rcs-oxidizer">—</b> kg</span></div>
- <div class="rcs-status" aria-live="polite">ONE PULSE PER PRESS</div>
 </div>
 <script>
 (()=>{
  const panel=document.getElementById(<?=json_encode($rcsUid)?>);
  if(!panel)return;
- const craft=Number(panel.dataset.craft),status=panel.querySelector('.rcs-status');
+ const craft=Number(panel.dataset.craft);
  let busy=false;
  async function levels(){
   try{const r=await fetch('rcs_status.php?craft='+craft,{cache:'no-store'});
@@ -52,15 +50,13 @@ $rcsUid='rcs-'.bin2hex(random_bytes(5));
   }catch(e){}
  }
  panel.querySelectorAll('button[data-axis]').forEach(button=>button.addEventListener('click',async()=>{
-  if(busy)return;busy=true;status.textContent='COMMANDING';
+  if(busy)return;busy=true;
   try{
    const resp=await fetch('rcs_command.php',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({craft,axis:button.dataset.axis,sign:Number(button.dataset.sign)})});
-   if(!resp.ok)throw Error('COMMAND FAILED');
-   const data=await resp.json();
-   status.textContent=data.fired?'PULSE FIRED':'NO RESPONSE';
+   if(!resp.ok)throw Error('RCS command request failed');
    await levels();
-  }catch(e){status.textContent='CONTROL UNAVAILABLE';}finally{busy=false;}
+  }catch(e){console.warn('RCS command:',e);}finally{busy=false;}
  }));
  levels();const timer=setInterval(levels,3000);
  window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
