@@ -39,6 +39,16 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 }
 $stmt=$conn->prepare('SELECT file_name,pos_x,pos_y FROM console_instruments WHERE console_id=? ORDER BY id');
 $stmt->bind_param('s',$console);$stmt->execute();$items=$stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$assigned=array_fill_keys(array_column($items,'file_name'),true);
+$available=[];
+foreach(glob(__DIR__.'/instruments/*.php') ?: [] as $path){
+ $file=basename($path);
+ if(preg_match('/^[a-z][a-z0-9_]*\\.php$/i',$file) && !isset($assigned[$file]))$available[]=$file;
+}
+$sourceRows=$conn->query('SELECT file_name FROM instrument_sources ORDER BY file_name')->fetch_all(MYSQLI_ASSOC);
+foreach($sourceRows as $source)if(!isset($assigned[$source['file_name']]))$available[]=$source['file_name'];
+$available=array_values(array_unique($available));
+sort($available,SORT_NATURAL|SORT_FLAG_CASE);
 ?><!doctype html><html><head><meta charset="utf-8"><title>Layout editor</title><style>body{background:#777;color:white;font:16px Arial}button{padding:7px;margin:3px}input{padding:7px}a{color:white}.warning{background:#5a3624;border:1px solid #efbc6d;padding:10px;max-width:800px}</style></head><body>
 <h2><?=htmlspecialchars(STATIONS[$console])?> instrument layout</h2><p><a href="console.php?console=<?=urlencode($console)?>">Back to console</a></p>
 <?php foreach($items as $item):?><form method="post"><input type="hidden" name="csrf" value="<?=htmlspecialchars($_SESSION['moon_v2_csrf'])?>"><input type="hidden" name="file_name" value="<?=htmlspecialchars($item['file_name'])?>">
