@@ -125,3 +125,12 @@ When adding code, explicitly ask:
 - [ ] Current component-angle integration is an approximate three-axis model, not a full rigid-body gyro/gimbal model. It may produce error at coupled rotations; true Apollo drift/noise not yet simulated.
 - [ ] `imu_align.php` is a **development-only shortcut** to copy current true orientation into the estimate, not historical star alignment. Future optics procedure must replace it.
 - [ ] Preserve movable `eight_ball.php` layout in CM and LM Commander consoles.
+
+## Electrical power and failure states (2026-11-08)
+- [ ] On launch reset, restore component state to approved baseline (usually 1 ON), while preserving component catalog, `amps` and `failure_rule`.
+- [ ] `reliability_components.state`: 1 operational; 2 temporary failure; 3 permanent failure; 4 intentionally switched OFF.
+- [ ] RCS CM/LM cluster OFF switches operational direction components from 1 to 4, ON changes only 4 to 1; failures 2 and 3 remain unchanged.
+- [ ] IMU CM/LM OFF stops measured attitude integration without touching actual `objects` attitude; ON resumes estimates.
+- [ ] `amps`: RCS cluster 0.100 A, IMU 2.000 A, per-direction RCS controls 0 A to prevent double-counted continuous load. Actual bus consumption integration is future work.
+- [ ] `failure_rule`: configurable per component; current RCS legacy command pattern vs IMU less-than-100 trailing 1/2 per-tick pattern. Do not apply RCS probabilities automatically to future equipment.
+- [ ] Off state (4) is not an alarm/failure and must not turn the master caution yellow.
