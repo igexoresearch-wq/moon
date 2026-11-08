@@ -71,12 +71,13 @@ export function startOpticalWindow(id,observerId){
  let snapshot=null,last=0,busy=false;
  async function read(){if(busy)return;busy=true;try{const res=await fetch('state.php?observer='+observerId,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);snapshot=await res.json();last=Date.now();}catch(e){status.textContent='TELEMETRY ERROR: '+e.message;}finally{busy=false;}}
  function render(){
-  requestAnimationFrame(render);gl.viewport(0,0,canvas.width,canvas.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  if(document.hidden){setTimeout(render,250);return;}
+  setTimeout(render,50);gl.viewport(0,0,canvas.width,canvas.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   if(!snapshot){status.textContent='WAITING FOR SPACECRAFT TELEMETRY…';return;}
   const objs=snapshot.objects||[],self=objs.find(o=>+o.id===observerId);if(!self){status.textContent='OBSERVER MISSING';return;}
   const axes=basis(self),position=[+self.x,+self.y,+self.z],items=[];
   const earthObj=objs.find(o=>+o.id===1);
-  if(earthObj){const aim=norm(sub([+earthObj.x,+earthObj.y,+earthObj.z],position));const angle=Math.acos(Math.max(-1,Math.min(1,dot(axes.f,aim))))*180/Math.PI;status.textContent='EARTH '+angle.toFixed(0)+'° OFF AXIS · YAW '+Number(self.yaw).toFixed(0)+'°'+(earth.failed?' · EARTH IMAGE FAILED: /moon/textures/earth.jpg':earth.loading?' · LOADING EARTH IMAGE': ' · EARTH IMAGE OK');}
+  if(earthObj){const aim=norm(sub([+earthObj.x,+earthObj.y,+earthObj.z],position));const angle=Math.acos(Math.max(-1,Math.min(1,dot(axes.f,aim))))*180/Math.PI;status.textContent='EARTH '+angle.toFixed(0)+'° OFF AXIS · '+(angle<100?'AHEAD':'BEHIND')+' · YAW '+Number(self.yaw).toFixed(0)+'°'+(earth.failed?' · EARTH IMAGE FAILED: /moon/textures/earth.jpg':earth.loading?' · LOADING EARTH IMAGE': ' · EARTH IMAGE OK');}
   if(Date.now()-last>5000)status.textContent='TELEMETRY STALE';
   for(const o of objs){if(+o.id===observerId)continue;const center=sub([+o.x,+o.y,+o.z],position).map(x=>x*.001),dist=Math.hypot(...center),radius=(+o.radius_length||1)*.001;if(!dist)continue;items.push({o,center,dist,radius});}
   items.sort((a,b)=>b.dist-a.dist);
@@ -84,6 +85,8 @@ export function startOpticalWindow(id,observerId){
   gl.uniform3fv(U.right,new Float32Array(axes.right));gl.uniform3fv(U.up,new Float32Array(axes.up));gl.uniform3fv(U.forward,new Float32Array(axes.f));
   for(const item of items){
    const k=+item.o.id,tex=k===1?earth:k===2?moon:blank;
+   // Do not submit geometry that is wholly behind the optical camera.
+   if(dot(item.center,axes.f)+item.radius<=0)continue;
    gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tex.t);
    gl.uniform1f(U.has,tex.ready?1:0);gl.uniform3fv(U.tint,new Float32Array(k===1?[.18,.37,.72]:k===2?[.65,.63,.60]:[.8,.8,.76]));
    gl.uniform3fv(U.center,new Float32Array(item.center));gl.uniform1f(U.radius,item.radius);
