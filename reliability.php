@@ -23,6 +23,22 @@ function moonReliabilityTick(mysqli $db, int $tick):void {
     }
     // Restore temporary failures whose time has elapsed; alarm records persist.
     $db->query('UPDATE reliability_components SET state=1,state_since=NOW(),restore_at=NULL WHERE state=2 AND restore_at<=NOW()');
+    // Every registered ON component participates once per tick, regardless of subsystem.
+    $components=$db->query('SELECT id,component_key,state FROM reliability_components ORDER BY id FOR UPDATE')->fetch_all(MYSQLI_ASSOC);
+    $fail=$db->prepare('INSERT INTO reliability_failures (component_id,component_key,failure_type,description,roll,sim_tick,occurred_at,restore_at,acknowledged) VALUES (?,?,?,?,?,?,NOW(),?,0)');
+    $update=$db->prepare('UPDATE reliability_components SET state=?,state_since=NOW(),restore_at=? WHERE id=?');
+    foreach($components as $component){
+        if((int)$component['state']!==1)continue;
+        $id=(int)$component['id'];
+        $kind=moonReliabilityFailureKind($id,$roll);
+        if($kind===null)continue;
+        $state=$kind==='permanent'?3:2;
+        $restore=$kind==='temporary'?date('Y-m-d H:i:s',time()+random_int(60,3600)):null;
+        $key=(string)$component['component_key'];
+        $description=$kind==='permanent'?'Component permanently unavailable':'Component temporarily unavailable';
+        $update->bind_param('isi',$state,$restore,$id);$update->execute();
+        $fail->bind_param('isssiis',$id,$key,$kind,$description,$roll,$tick,$restore);$fail->execute();
+    }
 }
 
 /**
@@ -43,36 +59,12 @@ function moonReliabilityCommand(mysqli $db,string $key,string $operation='activa
     if((int)$c['state']!==1){
         return ['allowed'=>false,'reason'=>(int)$c['state']===4?'off':'unavailable','state'=>(int)$c['state'],'roll'=>null];
     }
-    $random=$db->query('SELECT roll,sim_tick FROM reliability_random WHERE id=1 FOR UPDATE')->fetch_assoc();
-    if(!$random)throw new RuntimeException('Reliability random value not initialized');
-    $roll=(int)$random['roll'];$tick=(int)$random['sim_tick'];
-    $type=null;$duration=null;$nextState=1;
-    // All components use one ID-based scheme, regardless of historical rule labels.
-    $type=moonReliabilityFailureKind($id,$roll);
-    if($type==='temporary'){$duration=random_int(60,3600);$nextState=2;}
-    elseif($type==='permanent')$nextState=3;
+    // The failure roll is applied to ALL ON components by moonReliabilityTick,
+    // not a second time each time a crew button is pressed.
+    $last=$db->prepare('UPDATE reliability_components SET last_command_at=NOW() WHERE id=?');
+    $last->bind_param('i',$id);$last->execute();
+    return ['allowed'=>true,'reason'=>'ok','state'=>1,'roll'=>null];
 
-    if($type!==null){
-        $desc=match($type){
-            'missed'=>"$operation command did not respond",
-            'temporary'=>"$operation unavailable; temporary component fault",
-            'permanent'=>"$operation unavailable; component failed permanently"
-        };
-        $restore=$duration===null?null:date('Y-m-d H:i:s',time()+$duration);
-        $insert=$db->prepare('INSERT INTO reliability_failures (component_id,component_key,failure_type,description,roll,sim_tick,occurred_at,restore_at,acknowledged) VALUES (?,?,?,?,?,?,NOW(),?,0)');
-        $insert->bind_param('isssiis',$id,$key,$type,$desc,$roll,$tick,$restore);
-        $insert->execute();
-        if($nextState!==1){
-            $update=$db->prepare('UPDATE reliability_components SET state=?,state_since=NOW(),restore_at=?,last_command_at=NOW() WHERE id=?');
-            $update->bind_param('isi',$nextState,$restore,$id);$update->execute();
-        }
-    }
-    if($nextState===1){
-        $last=$db->prepare('UPDATE reliability_components SET last_command_at=NOW() WHERE id=?');
-        $last->bind_param('i',$id);$last->execute();
-    }
-    return ['allowed'=>$type===null,'reason'=>$type??'ok','state'=>$nextState,'roll'=>$roll,
-            'retry_after'=>$duration,'failure_id'=>$type!==null?$db->insert_id:null];
 }
 
 /** Future master-alarm button: acknowledge an event, not repair the hardware. */
