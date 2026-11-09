@@ -157,3 +157,12 @@ When adding code, explicitly ask:
 
 ## Reliability overhaul — 09 Nov 2026
 All registered components share **one ID-based reliability algorithm**. Each second, `moonReliabilityTick` draws a single random integer from 1 through 100000 and checks every component whose state is 1. For component ID `N`: permanently fail at exactly `N`; temporarily fail at exactly `10000+N`, `20000+N`, `30000+N`, `40000+N`, `50000+N`. States 2, 3, 4 are not sampled for new failures. The old RCS per-command odds, IMU suffix odds, and separate fuel-cell random bands are obsolete; physical SM-separation failure conditions remain. Component IDs must be below 10000. The one-time `reset_component_failures.sql` returns states 2/3 to 1, keeps intentional OFF (4), clears fault history and electrical caution flags, and leaves simulator positions, batteries and layouts untouched. Run while execute worker is stopped, after deploying updated code. Active underlying power deficits or separation can legitimately cause alarms again after resuming.
+
+
+## Rendezvous radar and DSKY registers (2026-11-09)
+- [ ] Restore `cm_rendezvous_radar`, `lm_rendezvous_radar`, `cm_radar_responder`, `lm_radar_responder` to the final launch powered states. Development installation seeds them OFF (4).
+- [ ] Preserve individual component ID-based reliability, alarm catalog and electrical specifications. Electrical `amps` are currently 0 placeholders until agreed with the user, NOT historical specifications.
+- [ ] Clear/reset all `computer_registers` per craft (3 and 6), including valid flags, numeric values and tick; preserve keys. Invalid means no usable measurement, never represent it as zero range.
+- [ ] Preserve the independently positionable `instruments/rendezvous_radar.php` assignments.
+- [ ] Radar measurement requires own radar ON (state 1), opposite vehicle responder ON (state 1), both spacecraft active, and range >0 and <= 740,000 meters. Store true geometric range, off-axis angle, azimuth and elevation in four registers for future DSKY use.
+- [ ] Current approximation omits pointing cone, actual radar lock/acquisition, speed-of-light delay, line-of-sight blockage, interference, and noise; these must be modeled before claiming Apollo radar fidelity.
