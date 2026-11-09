@@ -1,19 +1,16 @@
 <?php
 declare(strict_types=1);
 /**
- * Apollo reliability engine. Independent of hardware controls and UI.
- * Calls must occur inside an existing DB transaction when checking a command.
- *
- * Number per simulator second: 1..100000, shared by actions in that tick.
- * For each complete 1,000-number block:
- *   001..010 => missed activation, component remains operational.
- *   011..015 => temporary offline, from 1 to 60 minutes.
- * For the FIRST FIVE blocks only:
- *   016      => permanent offline.
- * Otherwise => operation permitted.
- *
- * These rates are user-selected game mechanics, not historical NASA data.
+ * Every component has exactly six failure numbers based on its database ID.
+ * Permanent: id. Temporary: 10000*n + id, n=1..5.
+ * A single global random integer 1..100000 is drawn per simulation second.
  */
+function moonReliabilityFailureKind(int $id,int $roll):?string {
+ if($id<1 || $id>=10000)throw new RuntimeException('Component ID must be 1..9999 for ID-based reliability');
+ if($roll===$id)return 'permanent';
+ for($i=1;$i<=5;$i++)if($roll===$i*10000+$id)return 'temporary';
+ return null;
+}
 function moonReliabilityTick(mysqli $db, int $tick):void {
     $roll=random_int(1,100000);
     $q=$db->prepare('UPDATE reliability_random SET roll=?,sim_tick=?,generated_at=NOW() WHERE id=1');
@@ -49,17 +46,11 @@ function moonReliabilityCommand(mysqli $db,string $key,string $operation='activa
     $random=$db->query('SELECT roll,sim_tick FROM reliability_random WHERE id=1 FOR UPDATE')->fetch_assoc();
     if(!$random)throw new RuntimeException('Reliability random value not initialized');
     $roll=(int)$random['roll'];$tick=(int)$random['sim_tick'];
-    $block=intdiv($roll-1,1000);$slot=(($roll-1)%1000)+1;
     $type=null;$duration=null;$nextState=1;
-    $rule=(string)$c['failure_rule'];
-    if($rule==='legacy_rcs'){
-        if($slot<=10)$type='missed';
-        elseif($slot<=15){$type='temporary';$duration=random_int(60,3600);$nextState=2;}
-        elseif($slot===16 && $block<5){$type='permanent';$nextState=3;}
-    }elseif($rule==='imu_suffix_under_100' && $roll<100){
-        if($roll%10===3){$type='temporary';$duration=random_int(60,3600);$nextState=2;}
-        elseif($roll%10===4){$type='permanent';$nextState=3;}
-    }
+    // All components use one ID-based scheme, regardless of historical rule labels.
+    $type=moonReliabilityFailureKind($id,$roll);
+    if($type==='temporary'){$duration=random_int(60,3600);$nextState=2;}
+    elseif($type==='permanent')$nextState=3;
 
     if($type!==null){
         $desc=match($type){
