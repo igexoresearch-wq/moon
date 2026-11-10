@@ -30,7 +30,11 @@ try {
    // Future systems: include another one-tick module HERE.
    $conn->query('UPDATE sim_clock SET tick=tick+1,updated_at=NOW() WHERE id=1');
    $conn->commit();
-  }catch(Throwable $e){$conn->rollback();throw $e;}
+  }catch(Throwable $e){
+   $conn->rollback();
+   error_log('Moon physics worker failed at sim tick '.((int)($clock['tick']??-1)+1).': '.$e->getMessage());
+   throw $e;
+  }
   $delay=($started+$tick+1)-microtime(true);
   if($delay>0)usleep((int)round($delay*1000000));
  }
