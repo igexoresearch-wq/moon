@@ -15,12 +15,15 @@ try{
  if(!$component){http_response_code(503);echo json_encode(['error'=>'G meter component missing. Run g_meter_schema.sql.']);exit;}
  $clock=$conn->query('SELECT tick,updated_at FROM sim_clock WHERE id=1')->fetch_assoc();
  $state=(int)$component['state'];$tick=(int)($clock['tick']??0);
+ $workerAge=null;
+ if(!empty($clock['updated_at']))$workerAge=max(0,time()-strtotime($clock['updated_at']));
  $sampleTick=$sample['sample_tick']===null?null:(int)$sample['sample_tick'];
  $valid=(bool)$sample['valid']&&$state===1&&$sampleTick!==null&&($tick-$sampleTick)<=2;
  $status='SAMPLED';
  if($state===4)$status='POWER OFF';
  elseif($state===2)$status='TEMPORARY FAILURE';
  elseif($state===3)$status='PERMANENT FAILURE';
+ elseif($workerAge!==null && $workerAge>120)$status='SIMULATION WORKER NOT ADVANCING';
  elseif($sampleTick===null)$status='NO SAMPLE — CHECK SIMULATION WORKER';
  elseif($tick-$sampleTick>2)$status='STALE SAMPLE — CHECK SIMULATION WORKER';
  elseif(!$valid)$status='WAITING FOR SECOND SAMPLE';
@@ -33,7 +36,8 @@ try{
   'sample_tick'=>$sampleTick,
   'sim_tick'=>$tick,
   'sampled_at'=>$sample['sampled_at'],
-  'clock_updated_at'=>$clock['updated_at']??null
+  'clock_updated_at'=>$clock['updated_at']??null,
+  'worker_age_seconds'=>$workerAge
  ],JSON_THROW_ON_ERROR);
 }catch(Throwable $e){
  error_log('Moon G-meter status: '.$e->getMessage());
