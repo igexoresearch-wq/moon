@@ -1,6 +1,10 @@
 <?php
 require_once __DIR__.'/common.php';
 $console=moonConsole();
+if($console==='fido'){
+ header('Location: fido_console.php',true,302);
+ exit;
+}
 $observerId=moonObserver($console);
 $stmt=$conn->prepare('SELECT file_name,pos_x,pos_y FROM console_instruments WHERE console_id=? ORDER BY id');
 $stmt->bind_param('s',$console);$stmt->execute();$instruments=$stmt->get_result()->fetch_all(MYSQLI_ASSOC);
