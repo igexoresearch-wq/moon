@@ -68,7 +68,7 @@ button.moon-caution-light{cursor:pointer;width:140px;font-size:15px}
   try{await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'acknowledge'})});await refresh();}
   catch(e){console.warn('Master acknowledge:',e);}
  });
- refresh();const timer=setInterval(refresh,1500);
+ refresh();let polling=false;const timer=setInterval(async()=>{if(document.hidden||polling)return;polling=true;try{await refresh();}finally{polling=false;}},5000);
  window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
 })();
 </script>
