@@ -9,8 +9,9 @@ CREATE TABLE IF NOT EXISTS fido_displays (
   is_default TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 INSERT INTO fido_displays(display_key,button_label,page_file,sort_order,enabled,is_default) VALUES
-('summary','001 SUMMARY','summary.php',10,1,1),
-('state','002 STATE VECTOR','state.php',20,1,0),
-('orbit','003 ORBIT','orbit.php',30,1,0),
+('summary','001 TRAJECTORY','summary.php',10,1,1),
+('orbit','002 ORBITAL DATA','orbit.php',20,1,0),
+('state','003 POWERED FLIGHT','state.php',30,1,0),
 ('rendezvous','004 RENDEZVOUS','rendezvous.php',40,1,0)
-ON DUPLICATE KEY UPDATE display_key=VALUES(display_key);
+ON DUPLICATE KEY UPDATE button_label=VALUES(button_label),page_file=VALUES(page_file),
+sort_order=VALUES(sort_order),is_default=VALUES(is_default);
