@@ -1,6 +1,12 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__.'/common.php';
+// Acquire an OS-level process lock BEFORE opening MySQL. Multiple cron jobs
+// must not each consume one of the hosting account's limited connections.
+$moonWorkerLockFile=fopen(sys_get_temp_dir().'/moon_program_execute_'.md5(__DIR__).'.lock','c');
+if($moonWorkerLockFile===false)throw new RuntimeException('Cannot create Moon worker process lock');
+if(!flock($moonWorkerLockFile,LOCK_EX|LOCK_NB)){fclose($moonWorkerLockFile);exit;}
+try{
+ require_once __DIR__.'/common.php';
 if(PHP_SAPI!=='cli')moonSimRequireWorker();
 require_once __DIR__.'/physics.php';
 require_once __DIR__.'/reliability.php';
@@ -39,3 +45,8 @@ try {
   if($delay>0)usleep((int)round($delay*1000000));
  }
 }finally{$conn->query("SELECT RELEASE_LOCK('moon_v2_execute')");}
+
+}finally{
+ flock($moonWorkerLockFile,LOCK_UN);
+ fclose($moonWorkerLockFile);
+}
