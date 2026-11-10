@@ -63,7 +63,7 @@ for(const holder of panel.querySelectorAll('[data-cell]')){
  }));
  refresh(cell);
 }
-const timer=setInterval(()=>{for(let n=1;n<=3;n++)refresh(n);},2000);
+let polling=false;const timer=setInterval(async()=>{if(document.hidden||polling)return;polling=true;try{await Promise.all([1,2,3].map(n=>refresh(n)));}finally{polling=false;}},5000);
 window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
 })();
 </script>
