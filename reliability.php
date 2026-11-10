@@ -3,7 +3,7 @@ declare(strict_types=1);
 /**
  * Every component has exactly six failure numbers based on its database ID.
  * Permanent: id. Temporary: 10000*n + id, n=1..5.
- * A single global random integer 1..10000000 is drawn per simulation second.
+ * A single global random integer 1..70000000 is drawn per simulation second.
  */
 function moonReliabilityFailureKind(int $id,int $roll):?string {
  if($id<1 || $id>=10000)throw new RuntimeException('Component ID must be 1..9999 for ID-based reliability');
@@ -12,7 +12,7 @@ function moonReliabilityFailureKind(int $id,int $roll):?string {
  return null;
 }
 function moonReliabilityTick(mysqli $db, int $tick):void {
-    $roll=random_int(1,10000000);
+    $roll=random_int(1,70000000);
     $q=$db->prepare('UPDATE reliability_random SET roll=?,sim_tick=?,generated_at=NOW() WHERE id=1');
     $q->bind_param('ii',$roll,$tick);
     $q->execute();
