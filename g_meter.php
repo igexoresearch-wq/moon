@@ -49,7 +49,7 @@ function moonGMeterTick(mysqli $db,int $tick):void {
    $elapsed=$tick-(int)$previous['sample_tick'];
    // Only consecutive samples while powered; no enormous restart spikes.
    if($elapsed===1 && $previous['velocity_x_mps']!==null){
-    $priorVel=[(float)$previous['velocity_x_mps'],(float)$previous['velocity_y_mps'],(float)$previous['velocity_z_mps'];
+    $priorVel=[(float)$previous['velocity_x_mps'],(float)$previous['velocity_y_mps'],(float)$previous['velocity_z_mps']];
     $priorGravity=[(float)$previous['gravity_x_mps2'],(float)$previous['gravity_y_mps2'],(float)$previous['gravity_z_mps2']];
     for($k=0;$k<3;$k++)$a[$k]=($v[$k]-$priorVel[$k])/$elapsed-($grav[$k]+$priorGravity[$k])/2;
     $magnitude=sqrt($a[0]**2+$a[1]**2+$a[2]**2)/9.80665;
