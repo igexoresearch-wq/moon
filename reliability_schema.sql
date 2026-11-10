@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS reliability_random (
  roll INT UNSIGNED NOT NULL,
  sim_tick BIGINT UNSIGNED NOT NULL DEFAULT 0,
  generated_at DATETIME NOT NULL,
- CHECK (roll BETWEEN 1 AND 100000)
+ CONSTRAINT chk_reliability_roll_range CHECK (roll BETWEEN 1 AND 10000000)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 INSERT IGNORE INTO reliability_random (id,roll,sim_tick,generated_at) VALUES (1,50000,0,NOW());
 
