@@ -1,12 +1,12 @@
 -- Run once after reliability_power_upgrade.sql and batteries_schema.sql.
--- Electrical loads set to 0 until their values are specified.
+-- Each radar and responder consumes 3 A while ON.
 INSERT IGNORE INTO reliability_components
 (component_key,component_name,spacecraft_id,master,alarm_name,state,amps,failure_rule)
 VALUES
-('cm_rendezvous_radar','CM Rendezvous Radar',3,1,'RNDZ RADAR',4,0,'none'),
-('lm_rendezvous_radar','LM Rendezvous Radar',6,1,'RNDZ RADAR',4,0,'none'),
-('cm_radar_responder','CM Radar Responder',3,1,'RADAR RESP',4,0,'none'),
-('lm_radar_responder','LM Radar Responder',6,1,'RADAR RESP',4,0,'none');
+('cm_rendezvous_radar','CM Rendezvous Radar',3,1,'RNDZ RADAR',4,3.000,'none'),
+('lm_rendezvous_radar','LM Rendezvous Radar',6,1,'RNDZ RADAR',4,3.000,'none'),
+('cm_radar_responder','CM Radar Responder',3,1,'RADAR RESP',4,3.000,'none'),
+('lm_radar_responder','LM Radar Responder',6,1,'RADAR RESP',4,3.000,'none');
 -- Register values are independent for each spacecraft and available to future DSKY code.
 CREATE TABLE IF NOT EXISTS computer_registers (
  craft_id INT UNSIGNED NOT NULL,
