@@ -10,11 +10,12 @@ $conn->query("CREATE TABLE IF NOT EXISTS fido_displays (
  enabled TINYINT(1) NOT NULL DEFAULT 1,
  is_default TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-$conn->query("INSERT IGNORE INTO fido_displays(display_key,button_label,page_file,sort_order,enabled,is_default) VALUES
- ('summary','001 SUMMARY','summary.php',10,1,1),
- ('state','002 STATE VECTOR','state.php',20,1,0),
- ('orbit','003 ORBIT','orbit.php',30,1,0),
- ('rendezvous','004 RENDEZVOUS','rendezvous.php',40,1,0)");
+$conn->query("INSERT INTO fido_displays(display_key,button_label,page_file,sort_order,enabled,is_default) VALUES
+ ('summary','001 TRAJECTORY','summary.php',10,1,1),
+ ('orbit','002 ORBITAL DATA','orbit.php',20,1,0),
+ ('state','003 POWERED FLIGHT','state.php',30,1,0),
+ ('rendezvous','004 RENDEZVOUS','rendezvous.php',40,1,0)
+ ON DUPLICATE KEY UPDATE button_label=VALUES(button_label),page_file=VALUES(page_file),sort_order=VALUES(sort_order),is_default=VALUES(is_default)");
 $displays=$conn->query("SELECT display_key,button_label,page_file,is_default FROM fido_displays WHERE enabled=1 ORDER BY sort_order,display_key")->fetch_all(MYSQLI_ASSOC);
 $allowed=[];
 foreach($displays as $entry){
@@ -41,12 +42,12 @@ a{color:inherit}.top{background:#313932;padding:10px 16px}.work{display:flex;ali
 .housing{border:10px ridge #3b443e;background:#121d28;padding:5px;flex:none}
 .screen{display:block;width:1000px;height:800px;border:0;background:#071924}
 </style></head><body>
-<header class="top">MOON PROGRAM / FLIGHT DYNAMICS OFFICER · <a href="index.php">MENU</a></header>
+<header class="top">FLIGHT DYNAMICS / MISSION CONTROL · <a href="index.php">MENU</a></header>
 <main class="work"><nav class="controls" aria-label="FIDO display selector"><h2>DISPLAY SELECT</h2>
 <?php foreach($allowed as $key=>$entry):?>
 <button type="button" data-key="<?=htmlspecialchars($key,ENT_QUOTES)?>" class="<?= $chosen===$key?'active':'' ?>"><?=htmlspecialchars($entry['button_label'])?></button>
 <?php endforeach;?>
-<p>RTCC DISPLAY UNIT<br>SCREEN: 1000 × 800<br>SELECTED FORMAT ONLY</p>
+<p>RTCC DISPLAY UNIT<br>SELECT DISPLAY FORMAT</p>
 </nav>
 <div class="housing"><iframe class="screen" id="fido-screen" title="Flight dynamics display" src="fido_page.php?display=<?=urlencode($chosen)?>"></iframe></div>
 </main>
