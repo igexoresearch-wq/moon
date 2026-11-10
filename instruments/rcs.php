@@ -110,7 +110,7 @@ $rcsUid='rcs-'.bin2hex(random_bytes(5));
    await levels();
   }catch(e){console.warn('RCS command:',e);}finally{busy=false;}
  }));
- levels();const timer=setInterval(levels,3000);
+ levels();let polling=false;const timer=setInterval(async()=>{if(document.hidden||polling)return;polling=true;try{await levels();}finally{polling=false;}},5000);
  window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
 })();
 </script>
