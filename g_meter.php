@@ -22,6 +22,8 @@ function moonGMeterGravity(array $craft,array $bodies):array {
  return $out;
 }
 function moonGMeterTick(mysqli $db,int $tick):void {
+ // Recover missing baseline rows without resetting previously collected samples.
+ $db->query('INSERT IGNORE INTO g_meter_samples(craft_id) VALUES (3),(6)');
  $objects=$db->query('SELECT id,active,x,y,z,delta_x,delta_y,delta_z,pitch,yaw,dry_mass FROM objects WHERE id IN (1,2,3,6) ORDER BY id FOR UPDATE')->fetch_all(MYSQLI_ASSOC);
  $indexed=[];foreach($objects as $o)$indexed[(int)$o['id']]=$o;
  if(!isset($indexed[1],$indexed[2],$indexed[3],$indexed[6]))throw new RuntimeException('G meter celestial or craft objects missing');
