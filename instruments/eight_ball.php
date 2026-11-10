@@ -69,7 +69,7 @@ root.querySelector('[data-align]').addEventListener('click',async()=>{
  if(!window.confirm('Simulator shortcut: realign IMU estimate to the true spacecraft attitude?'))return;
  try{let r=await fetch('imu_align.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({craft})});if(r.ok)await poll();}catch(e){}
 });
-draw(last);poll();refreshPower();const timer=setInterval(()=>{poll();refreshPower();},1000);
+draw(last);poll();refreshPower();let polling=false;const timer=setInterval(async()=>{if(document.hidden||polling)return;polling=true;try{await Promise.all([poll(),refreshPower()]);}finally{polling=false;}},5000);
 window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
 })();
 </script>
