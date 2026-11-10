@@ -174,3 +174,12 @@ The shared once-per-second random roll is now uniformly chosen from **1 through 
 
 ## Reliability range adjustment — 70 million
 The current random roll is **1–70,000,000 per simulated second**. ID-specific failure trigger numbers have not changed. Relative to the 10-million range, random temporary and permanent failure probabilities are approximately seven times lower for a continuously operating component. Apply `reliability_70million_upgrade.sql` to existing databases before deploying the revised `reliability.php`, while the simulation worker is stopped. This range upgrade does not itself reset component states or alarm history; `reset_component_failures.sql` remains a separate optional reset.
+
+
+## CM and LM sampled accelerometers — 09 Nov 2026
+- [ ] Restore `cm_g_meter` and `lm_g_meter` component power/failure states from approved launch baseline; each consumes **0.100 A while ON** and participates in the universal ID-based failure scheme.
+- [ ] Reset `g_meter_samples` fields `sample_tick`, `sampled_at`, quantized velocities, gravitational acceleration, measured nongravitational acceleration, `g_magnitude`, `g_forward`, and `valid`. Preserve both rows, one for craft 3 and one for craft 6.
+- [ ] Keep `instruments/g_meter.php` positioning on the CM and LM Commander consoles.
+- [ ] At each physics tick capture XYZ velocities rounded to **0.01 m/s**. Compare consecutive powered samples using simulated tick differences; subtract average Earth+Moon gravitational acceleration computed from each sample position. Store signed craft-forward G and total acceleration magnitude divided by 9.80665 m/s²; do not calculate measured G directly from thrust.
+- [ ] When G meter is OFF, temporarily failed, permanently failed or craft inactive, invalidate reading and clear sampling baseline. First powered sample after restart establishes baseline without guessing G.
+- [ ] This deliberately approximates accelerometer behavior: sampling discretization and gravitational model mismatch create small noise. True Apollo CM ACCEL G and LM T/W instrument calibration and scale differ from this common Earth-G dial.
