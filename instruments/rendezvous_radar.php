@@ -51,7 +51,7 @@ $rrId='radar-'.bin2hex(random_bytes(5));
   await refresh();
  }));
  root.querySelector('.rr-pointer').style.display='none';
- refresh();const timer=setInterval(refresh,1000);
+ refresh();let polling=false;const timer=setInterval(async()=>{if(document.hidden||polling)return;polling=true;try{await refresh();}finally{polling=false;}},5000);
  window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
 })();
 </script>
