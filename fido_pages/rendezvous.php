@@ -1,16 +1,20 @@
 <?php
 $cm=$objects[3]??null;$lm=$objects[6]??null;
 ?>
-<h2>004 / CM-LM RELATIVE MOTION</h2>
-<?php if(!$cm||!$lm):?><p>CRAFT RECORDS UNAVAILABLE</p><?php else:
-$delta=[];$velocity=[];foreach(['x','y','z'] as $k)$delta[]=(float)$lm[$k]-(float)$cm[$k];
-foreach(['delta_x','delta_y','delta_z'] as $k)$velocity[]=(float)$lm[$k]-(float)$cm[$k];
-$range=fidoNorm($delta);$relative=fidoNorm($velocity);$closing=$range>0?-array_sum(array_map(fn($a,$b)=>$a*$b,$delta,$velocity))/$range:null;
+<h2>004 / RENDEZVOUS FLIGHT DATA</h2>
+<?php if(!$cm||!$lm||(int)$cm['active']!==1||(int)$lm['active']!==1):?>
+<p>RENDEZVOUS TRAJECTORY DATA UNAVAILABLE</p>
+<?php else:
+$separation=[];$relativeVelocity=[];
+foreach(['x','y','z'] as $axis)$separation[]=(float)$lm[$axis]-(float)$cm[$axis];
+foreach(['delta_x','delta_y','delta_z'] as $axis)$relativeVelocity[]=(float)$lm[$axis]-(float)$cm[$axis];
+$range=fidoNorm($separation);$relSpeed=fidoNorm($relativeVelocity);
+$rangeRate=$range>0?-array_sum(array_map(static fn($a,$b)=>$a*$b,$separation,$relativeVelocity))/$range:null;
+$lateral=$rangeRate===null?null:sqrt(max(0.,$relSpeed*$relSpeed-$rangeRate*$rangeRate));
 ?>
 <div class="fd-grid">
-<section><h3>RELATIVE POSITION · KM</h3><?php fidoRows(['DX'=>fidoN($delta[0]/1000,3),'DY'=>fidoN($delta[1]/1000,3),'DZ'=>fidoN($delta[2]/1000,3),'RANGE'=>fidoN($range/1000,4)]);?></section>
-<section><h3>RELATIVE VELOCITY · M/S</h3><?php fidoRows(['DVX'=>fidoN($velocity[0],3),'DVY'=>fidoN($velocity[1],3),'DVZ'=>fidoN($velocity[2],3),'SPEED'=>fidoN($relative,3)]);?></section>
-<section><h3>LINE-OF-SIGHT RATE</h3><?php fidoRows(['CLOSING (+) M/S'=>fidoN($closing,3),'RATE SIGN'=>$closing===null?'---':($closing>0?'CLOSING':($closing<0?'OPENING':'STATIONARY')),'CRAFT 1'=>'COMMAND MODULE','CRAFT 2'=>'LM ASCENT']);?></section>
+<section><h3>RELATIVE MOTION</h3><?php fidoRows(['RANGE N MI'=>fidoN($range/1852,4),'RANGE RATE FT/SEC'=>fidoN($rangeRate===null?null:$rangeRate*3.280839895,2),'REL SPEED FT/SEC'=>fidoN($relSpeed*3.280839895,2),'CROSS TRACK SPEED FT/SEC'=>fidoN($lateral===null?null:$lateral*3.280839895,2)]);?></section>
+<section><h3>RENDEZVOUS CONDITIONS</h3><?php fidoRows(['CLOSURE'=>$rangeRate===null?'---':($rangeRate>0?'CLOSING':($rangeRate<0?'OPENING':'NO RANGE CHANGE')),'PRIMARY VEHICLE'=>'CSM','SECONDARY VEHICLE'=>'LM','INTERCEPT SOLUTION'=>'NOT AVAILABLE']);?></section>
 </div>
-<div class="fd-note">RELATIVE MOTION CALCULATED FROM SIMULATION STATE. NOT A RADAR LOCK OR A COMPUTED RENDEZVOUS MANEUVER.</div>
+<div class="fd-note">RELATIVE TRAJECTORY SOLUTION. TARGETING AND MANEUVER COMPUTATION NOT YET AVAILABLE.</div>
 <?php endif;?>
