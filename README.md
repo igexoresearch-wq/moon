@@ -4,9 +4,9 @@ Minimal Apollo orbital simulator. Start at `index.php`. Import `database/schema.
 
 ## FIDO flight-dynamics display
 
-Open `console.php?console=fido` or `fido_console.php`. The FIDO CRT is 1000 × 800 px; the selector sits to its left. The default format is `001 SUMMARY`. Additional implemented formats are `002 STATE VECTOR`, `003 ORBIT`, and `004 RENDEZVOUS`.
+Open `console.php?console=fido` or `fido_console.php`. The FIDO CRT is 1000 × 800 px; the selector sits to its left. The default format is `001 TRAJECTORY`. Additional implemented formats are `002 ORBITAL DATA`, `003 POWERED FLIGHT`, and `004 RENDEZVOUS`. The displays present Apollo-era flight-dynamics quantities (altitude, speed, flight-path angle, orbital elements and relative motion), not raw simulation coordinates or tick counters.
 
-The `fido_displays` SQL table stores each button's key, label, sort order, enabled flag and matching PHP page filename. The FIDO console creates and seeds these four rows on its first load (or you may import `fido_displays.sql` in phpMyAdmin). Existing rows are not overwritten.
+The `fido_displays` SQL table stores each button's key, label, sort order, enabled flag and matching PHP page filename. The FIDO console creates and seeds these four rows on its first load (or you may import `fido_displays.sql` in phpMyAdmin). Existing buttons' Apollo labels and order are updated while their enabled/disabled settings are preserved.
 
 New formats require a reviewed, trusted PHP page in `fido_pages/` and a new database row. The selector does not execute PHP or HTML stored in SQL. The display pages use the live `objects` and `sim_clock` tables and reload every five seconds, without changing the selected button.
 
