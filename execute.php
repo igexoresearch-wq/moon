@@ -1,12 +1,27 @@
 <?php
 declare(strict_types=1);
+// The worker's status log lives in the hosting account HOME, outside public_html.
+function moonWorkerDiagnostic(string $message): void {
+ $path=dirname(__DIR__,4).'/moon-worker-debug.log';
+ $line=gmdate('Y-m-d H:i:s').' UTC | '.$message."\n";
+ if(@file_put_contents($path,$line,FILE_APPEND|LOCK_EX)===false)error_log('Moon worker diagnostic: '.$message);
+}
+moonWorkerDiagnostic('START execute.php; PHP='.PHP_VERSION.'; SAPI='.PHP_SAPI);
+register_shutdown_function(static function():void {
+ $error=error_get_last();
+ if($error!==null&&in_array($error['type'],[E_ERROR,E_PARSE,E_CORE_ERROR,E_COMPILE_ERROR,E_USER_ERROR],true)){
+  moonWorkerDiagnostic('FATAL '.$error['message'].' at '.$error['file'].':'.$error['line']);
+ }
+});
 // Acquire an OS-level process lock BEFORE opening MySQL. Multiple cron jobs
 // must not each consume one of the hosting account's limited connections.
 $moonWorkerLockFile=fopen(sys_get_temp_dir().'/moon_program_execute_'.md5(__DIR__).'.lock','c');
 if($moonWorkerLockFile===false)throw new RuntimeException('Cannot create Moon worker process lock');
-if(!flock($moonWorkerLockFile,LOCK_EX|LOCK_NB)){fclose($moonWorkerLockFile);exit;}
+if(!flock($moonWorkerLockFile,LOCK_EX|LOCK_NB)){moonWorkerDiagnostic('EXIT process lock occupied');fclose($moonWorkerLockFile);exit;}
+moonWorkerDiagnostic('Process lock acquired');
 try{
  require_once __DIR__.'/common.php';
+ moonWorkerDiagnostic('Database connection established');
 if(PHP_SAPI!=='cli')moonSimRequireWorker();
 require_once __DIR__.'/physics.php';
 require_once __DIR__.'/reliability.php';
@@ -18,7 +33,8 @@ require_once __DIR__.'/g_meter.php';
 // Invoke once per minute from cron; runs up to 60 simulated one-second ticks.
 // Prevent concurrent workers via a MySQL advisory lock.
 $lock=$conn->query("SELECT GET_LOCK('moon_v2_execute',0) AS locked")->fetch_assoc();
-if((int)$lock['locked']!==1)exit;
+if((int)$lock['locked']!==1){moonWorkerDiagnostic('EXIT MySQL lock unavailable');exit;}
+moonWorkerDiagnostic('MySQL lock acquired; starting physics');
 try {
  $started=microtime(true);
  for($tick=0;$tick<60;$tick++){
@@ -52,14 +68,19 @@ try {
    $conn->commit();
   }catch(Throwable $e){
    $conn->rollback();
+   moonWorkerDiagnostic('TICK ERROR '.get_class($e).' at '.basename($e->getFile()).':'.$e->getLine().' — '.$e->getMessage());
    error_log('Moon physics worker failed at sim tick '.((int)($clock['tick']??-1)+1).': '.$e->getMessage());
    throw $e;
   }
   $delay=($started+$tick+1)-microtime(true);
   if($delay>0)usleep((int)round($delay*1000000));
  }
+ moonWorkerDiagnostic('SUCCESS 60 ticks completed');
 }finally{$conn->query("SELECT RELEASE_LOCK('moon_v2_execute')");}
 
+}catch(Throwable $workerFailure){
+ moonWorkerDiagnostic('WORKER ERROR '.get_class($workerFailure).' at '.basename($workerFailure->getFile()).':'.$workerFailure->getLine().' — '.$workerFailure->getMessage());
+ throw $workerFailure;
 }finally{
  flock($moonWorkerLockFile,LOCK_UN);
  fclose($moonWorkerLockFile);
