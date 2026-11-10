@@ -32,7 +32,21 @@ try {
    moonImuTick($conn,1.0,(int)$clock['tick']+1);
    moonElectricalTick($conn,(int)$clock['tick']+1);
    moonRendezvousRadarTick($conn,(int)$clock['tick']+1);
-   moonGMeterTick($conn,(int)$clock['tick']+1);
+   // A failed optional gauge must never roll back the core flight physics.
+   // A savepoint removes partial gauge writes before committing the tick.
+   $conn->query('SAVEPOINT moon_g_meter');
+   try{
+    moonGMeterTick($conn,(int)$clock['tick']+1);
+    $conn->query('RELEASE SAVEPOINT moon_g_meter');
+   }catch(Throwable $gError){
+    $conn->query('ROLLBACK TO SAVEPOINT moon_g_meter');
+    $conn->query('RELEASE SAVEPOINT moon_g_meter');
+    // Log at most once per worker invocation to avoid 60 identical errors.
+    if(!isset($gMeterFailureLogged)){
+     error_log('Moon optional G-meter failed (flight physics continues): '.$gError->getMessage());
+     $gMeterFailureLogged=true;
+    }
+   }
    // Future systems: include another one-tick module HERE.
    $conn->query('UPDATE sim_clock SET tick=tick+1,updated_at=NOW() WHERE id=1');
    $conn->commit();
