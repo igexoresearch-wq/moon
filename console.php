@@ -22,5 +22,7 @@ a{color:white}
 </div><?php endforeach;?></div><script>
 const moonObserverId=<?=(int)$observerId?>;
 async function broadcastTelemetry(){try{const r=await fetch('state.php?observer='+moonObserverId,{cache:'no-store'});if(!r.ok)return;const state=await r.json();const self=state.objects.find(o=>Number(o.id)===moonObserverId);if(!self)return;for(const frame of document.querySelectorAll('iframe.pasted-gauge'))frame.contentWindow?.postMessage({type:'moon-telemetry',self,objects:state.objects},'*');}catch(e){console.warn(e)}}
-setInterval(broadcastTelemetry,1000);setTimeout(broadcastTelemetry,500);
+let moonTelemetryBusy=false;
+const moonTelemetrySafely=async()=>{if(document.hidden||moonTelemetryBusy)return;moonTelemetryBusy=true;try{await broadcastTelemetry();}finally{moonTelemetryBusy=false;}};
+setInterval(moonTelemetrySafely,5000);setTimeout(moonTelemetrySafely,500);
 </script></body></html>
