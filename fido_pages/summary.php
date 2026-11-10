@@ -1,15 +1,13 @@
 <?php
 $target=$objects[3]??null;
-if(!$target){echo '<p>COMMAND MODULE STATE UNAVAILABLE</p>';return;}
+if(!$target){echo '<p>CSM TRAJECTORY UNAVAILABLE</p>';return;}
 $body=fidoBody($target,$objects[1],$objects[2]);$orb=fidoOrbit($target,$body);
 ?>
-<h2>001 / FLIGHT DYNAMICS SUMMARY</h2>
+<h2>001 / FLIGHT TRAJECTORY</h2>
 <div class="fd-grid">
-<section><h3>MISSION CLOCK</h3><?php fidoRows(['SIM TICK'=>number_format($tick),'LAST UPDATE'=>$updated,'REFERENCE BODY'=>$body['name']]);?></section>
-<section><h3>TRACKED SPACECRAFT</h3><?php fidoRows(['VEHICLE'=>$target['name'],'STATUS'=>(int)$target['active']===1?'ACTIVE':'INACTIVE','FRAME'=>'SIMULATION XYZ']);?></section>
-<section><h3>CURRENT POSITION · KM</h3><?php fidoRows(['X'=>fidoN((float)$target['x']/1000,3),'Y'=>fidoN((float)$target['y']/1000,3),'Z'=>fidoN((float)$target['z']/1000,3)]);?></section>
-<section><h3>CURRENT VELOCITY · KM/S</h3><?php fidoRows(['VX'=>fidoN((float)$target['delta_x']/1000,5),'VY'=>fidoN((float)$target['delta_y']/1000,5),'VZ'=>fidoN((float)$target['delta_z']/1000,5)]);?></section>
-<section><h3>OSCULATION / ORBIT</h3><?php fidoRows(['ALTITUDE KM'=>fidoN($orb['alt'],2),'SPEED KM/S'=>fidoN($orb['speed'],5),'APOAPSIS KM'=>fidoN($orb['apo'],2),'PERIAPSIS KM'=>fidoN($orb['peri'],2)]);?></section>
-<section><h3>ORBIT STATUS</h3><?php fidoRows(['CLASS'=>$orb['status'],'ECCENTRICITY'=>fidoN($orb['ecc'],6),'PERIOD MIN'=>fidoN($orb['period'],2),'INCLINATION DEG'=>fidoN($orb['inc'],3)]);?></section>
+<section><h3>VEHICLE / CENTRAL BODY</h3><?php fidoRows(['VEHICLE'=>'CSM','PRIMARY'=>$body['name'],'ALTITUDE N MI'=>fidoN($orb['alt']===null?null:$orb['alt']/1.852,2),'VELOCITY FT/SEC'=>fidoN($orb['speed']===null?null:$orb['speed']*3280.839895,1)]);?></section>
+<section><h3>FLIGHT CONDITIONS</h3><?php fidoRows(['FLIGHT PATH ANG DEG'=>fidoN($orb['fpa'],3),'VERTICAL RATE FT/SEC'=>fidoN($orb['radial']===null?null:$orb['radial']*3.280839895,1),'HORIZ SPEED FT/SEC'=>fidoN($orb['horizontal']===null?null:$orb['horizontal']*3.280839895,1),'MOTION'=>$orb['radial']===null?'---':($orb['radial']>0?'ASCENDING':($orb['radial']<0?'DESCENDING':'LEVEL'))]);?></section>
+<section><h3>ORBITAL CONDITIONS</h3><?php fidoRows(['APOGEE N MI'=>fidoN($orb['apo']===null?null:$orb['apo']/1.852,2),'PERIGEE N MI'=>fidoN($orb['peri']===null?null:$orb['peri']/1.852,2),'INCLINATION DEG'=>fidoN($orb['inc'],3),'PERIOD MIN'=>fidoN($orb['period'],2)]);?></section>
+<section><h3>FLIGHT DYNAMICS</h3><?php fidoRows(['ORBIT TYPE'=>$orb['status'],'ECCENTRICITY'=>fidoN($orb['ecc'],6),'CENTRAL BODY'=>$body['name'],'MANEUVER SOLUTION'=>'NOT AVAILABLE']);?></section>
 </div>
-<div class="fd-note">TWO-BODY INSTANTANEOUS ELEMENTS. NEXT MANEUVER: NOT COMPUTED. NO BURN PLAN LOADED.</div>
+<div class="fd-note">TRAJECTORY VALUES ARE CURRENT ESTIMATES. NOMINAL PROFILE COMPARISON NOT AVAILABLE.</div>
