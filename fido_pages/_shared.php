@@ -26,7 +26,7 @@ function fidoOrbit(array $craft,array $body):array {
  $ev=[($v[1]*$h[2]-$v[2]*$h[1])/$mu-$r[0]/$radius,($v[2]*$h[0]-$v[0]*$h[2])/$mu-$r[1]/$radius,($v[0]*$h[1]-$v[1]*$h[0])/$mu-$r[2]/$radius];
  $ecc=fidoNorm($ev);$energy=$speed*$speed/2-$mu/$radius;
  $a=abs($energy)>1e-10?-$mu/(2*$energy):null;
- $peri=$a!==null?$a*(1-$ecc)-(float)$body['radius_length']:null;
+ $peri=$hn>0?($hn*$hn/$mu)/(1+$ecc)-(float)$body['radius_length']:null;
  $apo=$a!==null&&$energy<0?$a*(1+$ecc)-(float)$body['radius_length']:null;
  $period=$a!==null&&$energy<0?2*M_PI*sqrt($a**3/$mu):null;
  return ['alt'=>($radius-(float)$body['radius_length'])/1000,'speed'=>$speed/1000,'apo'=>$apo===null?null:$apo/1000,'peri'=>$peri===null?null:$peri/1000,'period'=>$period===null?null:$period/60,'ecc'=>$ecc,'inc'=>$hn>0?rad2deg(acos(max(-1,min(1,$h[2]/$hn)))):null,'radial'=>$rv/$radius,'status'=>$energy<0?'BOUND / OSCULATING':'ESCAPE / UNBOUND'];
