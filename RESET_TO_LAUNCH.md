@@ -161,7 +161,7 @@ All registered components share **one ID-based reliability algorithm**. Each sec
 
 ## Rendezvous radar and DSKY registers (2026-11-09)
 - [ ] Restore `cm_rendezvous_radar`, `lm_rendezvous_radar`, `cm_radar_responder`, `lm_radar_responder` to the final launch powered states. Development installation seeds them OFF (4).
-- [ ] Preserve individual component ID-based reliability, alarm catalog and electrical specifications. Electrical `amps` are currently 0 placeholders until agreed with the user, NOT historical specifications.
+- [ ] Preserve individual component ID-based reliability, alarm catalog and electrical specifications. Each radar and responder uses `amps=3.000` when ON (user-selected simulator specification, not historical measurement).
 - [ ] Clear/reset all `computer_registers` per craft (3 and 6), including valid flags, numeric values and tick; preserve keys. Invalid means no usable measurement, never represent it as zero range.
 - [ ] Preserve the independently positionable `instruments/rendezvous_radar.php` assignments.
 - [ ] Radar measurement requires own radar ON (state 1), opposite vehicle responder ON (state 1), both spacecraft active, and range >0 and <= 740,000 meters. Store true geometric range, off-axis angle, azimuth and elevation in four registers for future DSKY use.
