@@ -55,7 +55,7 @@ for(const unit of root.querySelectorAll('[data-battery]')){
   await update(n);
  }));
 }
-const timer=setInterval(()=>{update(1);update(2);},2000);
+let polling=false;const timer=setInterval(async()=>{if(document.hidden||polling)return;polling=true;try{await Promise.all([update(1),update(2)]);}finally{polling=false;}},5000);
 window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
 })();
 </script>
