@@ -20,7 +20,7 @@ function fidoOrbit(array $craft,array $body):array {
  $r=[(float)$craft['x']-(float)$body['x'],(float)$craft['y']-(float)$body['y'],(float)$craft['z']-(float)$body['z']];
  $v=[(float)$craft['delta_x']-(float)$body['delta_x'],(float)$craft['delta_y']-(float)$body['delta_y'],(float)$craft['delta_z']-(float)$body['delta_z']];
  $radius=fidoNorm($r);$speed=fidoNorm($v);$mu=6.67430e-11*(float)$body['dry_mass'];
- if($radius<=0||$mu<=0)return ['alt'=>null,'speed'=>null,'apo'=>null,'peri'=>null,'period'=>null,'ecc'=>null,'inc'=>null,'radial'=>null,'status'=>'NO SOLUTION'];
+ if($radius<=0||$mu<=0)return ['alt'=>null,'speed'=>null,'apo'=>null,'peri'=>null,'period'=>null,'ecc'=>null,'inc'=>null,'radial'=>null,'fpa'=>null,'horizontal'=>null,'status'=>'NO SOLUTION'];
  $h=[$r[1]*$v[2]-$r[2]*$v[1],$r[2]*$v[0]-$r[0]*$v[2],$r[0]*$v[1]-$r[1]*$v[0]];
  $hn=fidoNorm($h);$rv=($r[0]*$v[0]+$r[1]*$v[1]+$r[2]*$v[2]);
  $ev=[($v[1]*$h[2]-$v[2]*$h[1])/$mu-$r[0]/$radius,($v[2]*$h[0]-$v[0]*$h[2])/$mu-$r[1]/$radius,($v[0]*$h[1]-$v[1]*$h[0])/$mu-$r[2]/$radius];
@@ -29,5 +29,8 @@ function fidoOrbit(array $craft,array $body):array {
  $peri=$hn>0?($hn*$hn/$mu)/(1+$ecc)-(float)$body['radius_length']:null;
  $apo=$a!==null&&$energy<0?$a*(1+$ecc)-(float)$body['radius_length']:null;
  $period=$a!==null&&$energy<0?2*M_PI*sqrt($a**3/$mu):null;
- return ['alt'=>($radius-(float)$body['radius_length'])/1000,'speed'=>$speed/1000,'apo'=>$apo===null?null:$apo/1000,'peri'=>$peri===null?null:$peri/1000,'period'=>$period===null?null:$period/60,'ecc'=>$ecc,'inc'=>$hn>0?rad2deg(acos(max(-1,min(1,$h[2]/$hn)))):null,'radial'=>$rv/$radius,'status'=>$energy<0?'BOUND / OSCULATING':'ESCAPE / UNBOUND'];
+ $radial=$rv/$radius;
+ $horizontal=sqrt(max(0.,$speed*$speed-$radial*$radial));
+ $fpa=$speed>0?rad2deg(atan2($radial,$horizontal)):null;
+ return ['fpa'=>$fpa,'horizontal'=>$horizontal,'alt'=>($radius-(float)$body['radius_length'])/1000,'speed'=>$speed/1000,'apo'=>$apo===null?null:$apo/1000,'peri'=>$peri===null?null:$peri/1000,'period'=>$period===null?null:$period/60,'ecc'=>$ecc,'inc'=>$hn>0?rad2deg(acos(max(-1,min(1,$h[2]/$hn)))):null,'radial'=>$radial,'status'=>$energy<0?'BOUND / OSCULATING':'ESCAPE / UNBOUND'];
 }
