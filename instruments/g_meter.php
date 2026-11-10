@@ -69,7 +69,8 @@ root.querySelectorAll('[data-power]').forEach(b=>b.addEventListener('click',asyn
  await update();
 }));
 update();
-const timer=setInterval(update,1000);
+let polling=false;
+const timer=setInterval(async()=>{if(document.hidden||polling)return;polling=true;try{await update();}finally{polling=false;}},5000);
 window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
 })();
 </script>
