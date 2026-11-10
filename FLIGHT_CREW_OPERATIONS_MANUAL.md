@@ -272,3 +272,11 @@ The shared once-per-second random roll is now uniformly chosen from **1 through 
 
 ## Reliability range adjustment — 70 million
 The current random roll is **1–70,000,000 per simulated second**. ID-specific failure trigger numbers have not changed. Relative to the 10-million range, random temporary and permanent failure probabilities are approximately seven times lower for a continuously operating component. Apply `reliability_70million_upgrade.sql` to existing databases before deploying the revised `reliability.php`, while the simulation worker is stopped. This range upgrade does not itself reset component states or alarm history; `reset_component_failures.sql` remains a separate optional reset.
+
+
+## SAMPLED ACCELEROMETERS / G-METERS — NOV 2026
+The CM **ACCEL G** and LM **T/W / G** instruments are each independently movable small analog gauges. Both draw **0.1 A** while ON and obey the common reliability system. The CM real Apollo ACCEL G and LM T/W display differ in details; the simulator deliberately provides a common signed forward-axis G dial (-2 to +10 Earth g) and a supplementary total G reading.
+
+The new table `g_meter_samples` retains each craft's previous measured XYZ velocity rounded to **0.01 m/s**, a sample tick/time, the calculated Earth+Moon gravity vector, and the latest nongravitational acceleration vector, forward-axis signed `g_forward`, magnitude `g_magnitude`, and `valid` flag. `moonGMeterTick()` is called once per simulation second after physics. The difference in quantized velocity snapshots is divided by elapsed simulated seconds, with the average gravitational acceleration subtracted. Thus a freely coasting craft should display **approximately 0 G**, despite its orbital velocity continuously changing due to gravity. Signed forward G follows craft true pitch/yaw, not estimated IMU attitude. Values are stored, and the UI reads them from `g_meter_status.php`, **never recomputing from live true velocity**.
+
+When switched OFF or failed, readings become invalid and baseline is dropped. On returning to ON, one sampled second seeds a new baseline before reporting G. This instrument is approximate and not a physical inertial sensor model; maneuvers or unmodeled forces can cause discrepancies, particularly at scene transitions, and the LM T/W scale is not presented as authentic lunar-g units.
