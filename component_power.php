@@ -5,8 +5,8 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 $craft=(int)($_GET['craft']??$_POST['craft']??0);
 $system=(string)($_GET['system']??$_POST['system']??'');
-if(!in_array($craft,[3,6],true)||!in_array($system,['rcs','imu'],true)){http_response_code(400);exit;}
-$key=($craft===3?'cm':'lm').($system==='rcs'?'_rcs_cluster':'_imu');
+if(!in_array($craft,[3,6],true)||!in_array($system,['rcs','imu','g_meter'],true)){http_response_code(400);exit;}
+$key=($craft===3?'cm':'lm').match($system){'rcs'=>'_rcs_cluster','imu'=>'_imu','g_meter'=>'_g_meter'};
 if($_SERVER['REQUEST_METHOD']==='POST'){
  $origin=$_SERVER['HTTP_ORIGIN']??'';
  $host=preg_replace('/:\d+$/','',$_SERVER['HTTP_HOST']??'');
