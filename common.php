@@ -2,9 +2,9 @@
 declare(strict_types=1);
 require_once __DIR__.'/shared/operator_security.php';
 moonSimRequireOperator();
-$root=dirname(__DIR__).'/db.php';
-if(!is_file($root))throw new RuntimeException('Shared SWC db.php not found');
-require_once $root;
+$moonDbFile=__DIR__.'/db.php';
+if(!is_file($moonDbFile))throw new RuntimeException('Moon database config missing: create moon/db.php using db.example.php');
+require_once $moonDbFile;
 if(!isset($db_host,$db_user,$db_password))throw new RuntimeException('Database credentials unavailable');
 mysqli_report(MYSQLI_REPORT_ERROR|MYSQLI_REPORT_STRICT);
 $conn=new mysqli((string)$db_host,(string)$db_user,(string)$db_password,'moonland');
