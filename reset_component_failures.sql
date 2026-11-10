@@ -1,6 +1,7 @@
--- ONE-TIME CLEAR OF EXISTING RELIABILITY/ALARM FAULTS.
+-- REUSABLE MANUAL RESET OF EXISTING RELIABILITY/ALARM FAULTS.
 -- STOP execute.php cron/worker first; resume after updated PHP is deployed.
--- Intentional state 4 (OFF) is preserved. Failed 2/3 return to working 1.
+-- Intentional state 4 (OFF) is preserved. Failed states 2/3 return to working 1.
+-- Run after reliability_10million_upgrade.sql to avoid immediate old-range errors.
 -- No spacecraft physics, battery charge, or user instrument layout is changed.
 START TRANSACTION;
 UPDATE reliability_components
