@@ -46,20 +46,21 @@ async function update(){
    fetch('g_meter_status.php?craft='+craft,{cache:'no-store'}),
    fetch('component_power.php?system=g_meter&craft='+craft,{cache:'no-store'})
   ]);
-  if(!reading.ok||!power.ok)return;
-  const s=await reading.json(),p=await power.json();
+  const s=await reading.json(),p=power.ok?await power.json():{on:false};
+  if(!reading.ok){root.querySelector('[data-info]').textContent=s.error||'DATA ERROR';return;}
+  if(!power.ok){root.querySelector('[data-info]').textContent='POWER STATUS ERROR';return;}
   root.querySelectorAll('[data-power]').forEach(b=>b.classList.toggle('selected',(b.dataset.power==='on')===p.on));
   const valid=Boolean(s.valid && p.on);
   root.querySelector('[data-g]').textContent=valid?Number(s.g_forward).toFixed(3):'--';
   root.querySelector('[data-total]').textContent=valid?Number(s.g_magnitude).toFixed(3):'--';
-  root.querySelector('[data-info]').textContent=!p.on?'POWER OFF':valid?'SAMPLED':'WAITING FOR SAMPLE';
+  root.querySelector('[data-info]').textContent=s.status||(!p.on?'POWER OFF':valid?'SAMPLED':'WAITING FOR SAMPLE');
   const needle=root.querySelector('.gm-needle');
   needle.style.visibility=valid?'visible':'hidden';
   if(valid){
    const axial=Math.max(-2,Math.min(10,Number(s.g_forward)));
    needle.style.transform='rotate('+(-110+(axial+2)/12*220)+'deg)';
   }
- }catch(e){}
+ }catch(e){root.querySelector('[data-info]').textContent='CONNECTION ERROR';}
 }
 root.querySelectorAll('[data-power]').forEach(b=>b.addEventListener('click',async()=>{
  try{await fetch('component_power.php?system=g_meter&craft='+craft,{
