@@ -41,7 +41,21 @@ const skyStatus=document.getElementById(id+'-sky-status');
    const data=await res.json(),objects=data.objects||[];
    const self=objects.find(o=>Number(o.id)===<?=(int)$observerId?>);
    if(!self||Number(self.active)!==1){ctx.clearRect(0,0,400,400);skyStatus.textContent='SPACECRAFT INACTIVE';return;}
-   const sight=drawStarField(ctx,sky,stars,self,objects,{annotate:true});
+   // Older deployed star_field.js draws stars but returns no statistics.
+   // Calculate a fallback count so mixed-version installs keep rendering.
+   const rendered=drawStarField(ctx,sky,stars,self,objects,{annotate:true});
+   const sight=rendered&&typeof rendered.drawn==='number'?rendered:(()=>{
+    let inFov=0,drawn=0,referenceVisible=0;
+    const basis=starBasis(self);
+    for(const star of stars){
+     if(!starProject(star.vector,basis))continue;
+     inFov++;
+     if(starOcculted(star.vector,self,objects))continue;
+     drawn++;
+     if(star.group==='TRIAD')referenceVisible++;
+    }
+    return {inFov,drawn,referenceVisible};
+   })();
    skyStatus.textContent=sight.drawn===0
     ?(sight.inFov>0?'STARS OCCULTED BY EARTH / MOON':'NO STARS IN FOV — CHANGE ATTITUDE')
     :'VISIBLE STARS '+sight.drawn+' · REFERENCE '+sight.referenceVisible+'/3'+
