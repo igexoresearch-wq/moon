@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/propulsion.php';
 /** One second of gravity plus translation and Euler attitude integration.
  * Earth (id=1) remains fixed. Attached children inherit parent motion.
  * Impact resolves at the spherical surface crossing and stores local XYZ.
@@ -9,6 +10,9 @@ function moonV2Physics(mysqli $db,float $dt=1.0):void {
  $objects=[];foreach($rows as $row)$objects[(int)$row['id']]=$row;
  if(!isset($objects[1],$objects[2]))throw new RuntimeException('Earth and Moon missing');
  $earth=$objects[1];$moon=$objects[2];
+ // Returns zero acceleration when propulsion tables are not installed or all
+ // engines are off. Fuel changes share this tick's database transaction.
+ $engineAcceleration=moonPropulsionTick($db,$objects,$dt);
 
  $updates=[];
  foreach($objects as $id=>$o){
@@ -17,7 +21,8 @@ function moonV2Physics(mysqli $db,float $dt=1.0):void {
   if((int)$o['dependent']===1 && isset($objects[$parent]))continue;
   $pos=[(float)$o['x'],(float)$o['y'],(float)$o['z']];
   $vel=[(float)$o['delta_x'],(float)$o['delta_y'],(float)$o['delta_z']];
-  $acc=function(array $p)use($earth,$moon,$id):array {
+  $thrustAcceleration=$engineAcceleration[$id]??[0.,0.,0.];
+  $acc=function(array $p)use($earth,$moon,$id,$thrustAcceleration):array {
    $a=[0.,0.,0.];
    foreach([$earth,$moon] as $body){
     if((int)$body['id']===$id)continue;
@@ -27,6 +32,7 @@ function moonV2Physics(mysqli $db,float $dt=1.0):void {
     $g=6.67430e-11*(float)$body['dry_mass']/($r2*sqrt($r2));
     for($k=0;$k<3;$k++)$a[$k]+=$g*$dx[$k];
    }
+   for($k=0;$k<3;$k++)$a[$k]+=$thrustAcceleration[$k];
    return $a;
   };
   $a0=$acc($pos);$next=[];for($k=0;$k<3;$k++)$next[$k]=$pos[$k]+$vel[$k]*$dt+0.5*$a0[$k]*$dt*$dt;
