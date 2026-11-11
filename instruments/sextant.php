@@ -26,7 +26,10 @@ foreach($sextantStars as $s){
 <summary style="cursor:pointer;font-weight:bold">REFERENCE STAR CHART / INERTIAL +X</summary>
 <svg viewBox="0 0 210 210" width="210" height="210" role="img" aria-label="Reference star chart showing the Corner Arrow Crown triangle and nearby background stars" style="display:block;margin:8px auto;background:#050b14;border:1px solid #5d736f">
 <?php foreach($chartStars as $c):?>
-<circle cx="<?=round($c['x'],2)?>" cy="<?=round($c['y'],2)?>" r="<?=$c['group']==='TRIAD'?3.3:($c['group']==='KEY'?2.1:0.75)?>" fill="<?=$c['group']==='TRIAD'?'#ffe2a1':'#dce8f8'?>"/>
+<circle cx="<?=round($c['x'],2)?>" cy="<?=round($c['y'],2)?>" r="<?=$c['group']==='TRIAD'?2.4:($c['group']==='KEY'?2.0:0.75)?>" fill="#dce8f8"/>
+<?php if($c['group']==='TRIAD'):?>
+<circle cx="<?=round($c['x'],2)?>" cy="<?=round($c['y'],2)?>" r="8.5" fill="none" stroke="#e8e2b5" stroke-width="1.2"/>
+<?php endif;?>
 <?php endforeach;?>
 <g data-chart-key>
 <?php foreach($chartStars as $c):if($c['group']!=='TRIAD')continue;?>
@@ -78,9 +81,9 @@ function drawStarField(ctx,canvas,stars,self,objects,{clear=true}={}){
   if(!pos||starOcculted(star.vector,self,objects))continue;
   const x=canvas.width/2+pos.x*scale,y=canvas.height/2-pos.y*scale;
   const bright=star.group==='TRIAD';
-  const radius=bright?3.5:star.group==='KEY'?2.2:0.5+Math.max(0,5-Number(star.magnitude))*.23;
+  const radius=bright?2.4:star.group==='KEY'?2.0:0.5+Math.max(0,5-Number(star.magnitude))*.23;
   ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);
-  ctx.fillStyle=bright?'#ffdf9f':'#e6efff';ctx.fill();
+  ctx.fillStyle='#e6efff';ctx.fill();
  }
  // Deliberately NO labels, IDs, or constellation guide lines in the live sky.
 }
