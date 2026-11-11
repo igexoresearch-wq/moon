@@ -21,7 +21,7 @@ foreach($sextantStars as $s){
 </style>
 <div style="text-align:center;font-weight:bold;letter-spacing:1px">OPTICAL SEXTANT · STAR SIGHTINGS</div>
 <canvas width="308" height="308" aria-label="Sextant field with central reticle and measured X/Y"></canvas>
-<div class="sext-readout"><span>X <b data-x>00.0</b>°</span><span>Y <b data-y>00.0</b>°</span><span>PACK <b data-pack>5050</b></span></div>
+<div style="text-align:center;margin:7px 0;font-size:11px;letter-spacing:1px">OPTICAL RETICLE · 0.5° PER MINOR DIVISION</div>
 <details style="margin:10px 0;padding:7px;background:#242b2b;border:1px solid #858b7e" open>
 <summary style="cursor:pointer;font-weight:bold">REFERENCE STAR CHART / INERTIAL +X</summary>
 <svg viewBox="0 0 210 210" width="210" height="210" role="img" aria-label="Reference star chart showing the Corner Arrow Crown triangle and nearby background stars" style="display:block;margin:8px auto;background:#050b14;border:1px solid #5d736f">
@@ -37,57 +37,63 @@ foreach($sextantStars as $s){
 <div style="font-size:10px;line-height:1.5">A CORNER · B ARROW · C CROWN<br>CHART USES THE SAME FIXED STAR CATALOG AS THE WINDOW. ROTATE THE SPACECRAFT TO FIND THE PATTERN; ORIENTATION IN THE SEXTANT MAY BE ROTATED.</div>
 <button type="button" data-chart-toggle style="margin-top:6px">HIDE CHART KEY</button>
 </details>
-<div data-status>SELECT STAR · MEASURE THROUGH RETICLE</div>
-<div class="sext-instructions">P30: IDENTIFY A/B/C USING THE SEPARATE REFERENCE CHART. CLICK EACH STAR IN THE LIVE SEXTANT TO MEASURE IT; ENTER XXYY INTO DSKY R1-R3. 50=ZERO, 0.5° PER COUNT; X RIGHT, Y UP. DO NOT ROTATE BETWEEN SIGHTINGS.</div>
+
+<div class="sext-instructions">P30: IDENTIFY A/B/C USING THE REFERENCE CHART. READ ANGLES FROM ENGRAVED RETICLE SCALES: X RIGHT, Y UP. EACH SMALL TICK IS 0.5°. CONVERT TO XXYY WITH 50 AS ZERO, THEN ENTER R1-R3. KEEP ATTITUDE STEADY.</div>
 </div>
 <script type="module">
 // Shared star projection logic is inserted server-side to avoid ES module fetch failures.
 <?=preg_replace('/^export /m','',file_get_contents(__DIR__.'/star_field.js'))?>
 const root=document.getElementById(<?=json_encode($sextantId)?>),canvas=root.querySelector('canvas'),ctx=canvas.getContext('2d'),craft=Number(root.dataset.craft);
 const stars=<?=json_encode($sextantStars,JSON_THROW_ON_ERROR)?>;
-let objects=[],self=null,mouse=null,pending=false;
+let objects=[],self=null,pending=false;
 const chartKey=root.querySelector('[data-chart-key]'),chartButton=root.querySelector('[data-chart-toggle]');
-chartButton.addEventListener('click',()=>{const hide=chartKey.style.display!=='none';chartKey.style.display=hide?'none':'';chartButton.textContent=hide?'SHOW CHART KEY':'HIDE CHART KEY';});
-function grid(){
- ctx.save();ctx.strokeStyle='#405b57';ctx.lineWidth=.5;
- for(let i=0;i<=10;i++){const n=i*canvas.width/10;ctx.beginPath();ctx.moveTo(n,0);ctx.lineTo(n,canvas.height);ctx.moveTo(0,n);ctx.lineTo(canvas.width,n);ctx.stroke();}
- ctx.strokeStyle='#d5d9b6';ctx.lineWidth=1;const x=canvas.width/2,y=canvas.height/2;
- ctx.beginPath();ctx.moveTo(x-13,y);ctx.lineTo(x+13,y);ctx.moveTo(x,y-13);ctx.lineTo(x,y+13);ctx.stroke();ctx.restore();
-}
-function readout(x,y){
- const ix=Math.max(0,Math.min(99,Math.round(x*2+50))),iy=Math.max(0,Math.min(99,Math.round(y*2+50)));
- const packed=String(ix).padStart(2,'0')+String(iy).padStart(2,'0');
- root.querySelector('[data-x]').textContent=((ix-50)*.5).toFixed(1);
- root.querySelector('[data-y]').textContent=((iy-50)*.5).toFixed(1);
- root.querySelector('[data-pack]').textContent=packed;
+chartButton.addEventListener('click',()=>{
+ const hidden=chartKey.style.display!=='none';
+ chartKey.style.display=hidden?'none':'';
+ chartButton.textContent=hidden?'SHOW CHART KEY':'HIDE CHART KEY';
+});
+// Fixed, engraved crosshair and numerical angular scale: no digital sight readout.
+function reticle(){
+ const center=154,scale=308/49;
+ ctx.save();
+ ctx.strokeStyle='rgba(215,218,189,.83)';ctx.lineWidth=1;
+ ctx.beginPath();
+ ctx.moveTo(14,center);ctx.lineTo(294,center);
+ ctx.moveTo(center,14);ctx.lineTo(center,294);
+ ctx.stroke();
+ // Calibration matches starProject's 49-degree square angular field.
+ // 1 small division is 0.5 degrees; numbered divisions are 5 degrees.
+ for(let half=-48;half<=48;half++){
+  const angle=half*.5;
+  if(angle===0)continue;
+  const p=center+angle*scale;
+  const y=center-angle*scale;
+  const major=half%10===0,medium=half%2===0;
+  const len=major?11:(medium?6:3);
+  ctx.beginPath();
+  ctx.moveTo(p,center-len/2);ctx.lineTo(p,center+len/2);
+  ctx.moveTo(center-len/2,y);ctx.lineTo(center+len/2,y);
+  ctx.stroke();
+  if(major){
+   ctx.fillStyle='rgba(229,224,192,.95)';
+   ctx.font='10px monospace';
+   ctx.textAlign='center';ctx.textBaseline='top';
+   ctx.fillText(String(angle),p,center+13);
+   ctx.textAlign='left';ctx.textBaseline='middle';
+   ctx.fillText(String(angle),center+14,y);
+  }
+ }
+ ctx.fillStyle='#e9dfbe';ctx.font='10px monospace';
+ ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText('0',center+5,center+7);
+ ctx.textAlign='right';ctx.fillText('X +',292,center-22);
+ ctx.textAlign='left';ctx.fillText('Y +',center+15,17);
+ ctx.restore();
 }
 function render(){
  ctx.clearRect(0,0,308,308);
- if(self&&stars.length){
-  const drawn=drawStarField(ctx,canvas,stars,self,objects,{clear:false});
-  const visibility=drawn&&typeof drawn.drawn==='number'?drawn:(()=>{
-   let inFov=0,visible=0;const basis=starBasis(self);
-   for(const star of stars){
-    if(!starProject(star.vector,basis))continue;
-    inFov++;
-    if(!starOcculted(star.vector,self,objects))visible++;
-   }
-   return {inFov,drawn:visible};
-  })();
-  root.querySelector('[data-status]').textContent='VISIBLE STARS '+visibility.drawn+' · IDENTIFY BY REFERENCE CHART';
-  if(visibility.drawn===0)root.querySelector('[data-status]').textContent=visibility.inFov>0?'STARLIGHT BLOCKED BY EARTH / MOON':'NO STARS IN FOV — CHANGE ATTITUDE';
- }
- grid();
- if(mouse){
-  ctx.strokeStyle='#f9bfa3';ctx.beginPath();ctx.moveTo(mouse.px-7,mouse.py);ctx.lineTo(mouse.px+7,mouse.py);
-  ctx.moveTo(mouse.px,mouse.py-7);ctx.lineTo(mouse.px,mouse.py+7);ctx.stroke();
-  readout((mouse.px-154)*49/308,(154-mouse.py)*49/308);
- }
+ if(self&&stars.length)drawStarField(ctx,canvas,stars,self,objects,{clear:false});
+ reticle();
 }
-canvas.addEventListener('click',event=>{
- const rect=canvas.getBoundingClientRect();mouse={px:(event.clientX-rect.left)*308/rect.width,py:(event.clientY-rect.top)*308/rect.height};
- render();
-});
 async function poll(){
  if(pending)return;pending=true;
  try{
@@ -95,7 +101,7 @@ async function poll(){
   if(!r.ok)throw Error('telemetry unavailable');objects=(await r.json()).objects||[];
   self=objects.find(o=>Number(o.id)===craft);
   render();
- }catch(e){root.querySelector('[data-status]').textContent='TELEMETRY UNAVAILABLE';}
+ }catch(e){console.warn('Sextant telemetry unavailable:',e.message);}
  finally{pending=false;}
 }
 poll();const timer=setInterval(()=>{if(!document.hidden)poll();},1000);
