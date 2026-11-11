@@ -39,7 +39,7 @@ function readout(x,y){
 function render(){
  ctx.clearRect(0,0,308,308);
  if(self&&stars.length){
-  drawStarField(ctx,canvas,stars,self,objects,{annotate:true,clear:false});
+  const visibility=drawStarField(ctx,canvas,stars,self,objects,{annotate:true,clear:false});
   const s=stars.find(item=>item.id===selected);
   if(s){
    const p=starProject(s.vector,starBasis(self));
@@ -48,8 +48,10 @@ function render(){
     ctx.strokeStyle='#ffe19a';ctx.lineWidth=1;ctx.beginPath();ctx.arc(px,py,9,0,2*Math.PI);ctx.stroke();
     if(!mouse)readout(p.x,p.y);
     root.querySelector('[data-status]').textContent='STAR '+selected+' VISIBLE — READ XY';
-   }else root.querySelector('[data-status]').textContent='STAR '+selected+' OUT OF SEXTANT FOV';
+   }else root.querySelector('[data-status]').textContent='STAR '+selected+(p?' HIDDEN BY PLANET':' OUTSIDE FOV')+
+    ' · OTHER VISIBLE STARS '+visibility.drawn;
   }
+  if(visibility.drawn===0)root.querySelector('[data-status]').textContent=visibility.inFov>0?'STARLIGHT BLOCKED BY EARTH / MOON':'NO STARS IN FOV — CHANGE ATTITUDE';
  }
  grid();
  if(mouse){
