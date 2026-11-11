@@ -1,5 +1,7 @@
 <?php
 // Optical sextant installed on pilot stations. Sightings are human readings.
+require_once dirname(__DIR__).'/star_alignment.php';
+$sextantStars=moonStarCatalog();
 $sextantCraft=($console??'')==='lmp'?6:3;
 $sextantId='sext-'.bin2hex(random_bytes(4));
 ?>
@@ -20,9 +22,8 @@ $sextantId='sext-'.bin2hex(random_bytes(4));
 <script type="module">
 import {drawStarField,starBasis,starProject,starOcculted} from './instruments/star_field.js';
 const root=document.getElementById(<?=json_encode($sextantId)?>),canvas=root.querySelector('canvas'),ctx=canvas.getContext('2d'),craft=Number(root.dataset.craft);
-let stars=[],objects=[],self=null,selected='A',mouse=null,pending=false;
-try{const res=await fetch('star_catalog.php');if(!res.ok)throw Error('catalog unavailable');stars=(await res.json()).stars;}
-catch(e){root.querySelector('[data-status]').textContent='CATALOG ERROR';}
+const stars=<?=json_encode($sextantStars,JSON_THROW_ON_ERROR)?>;
+let objects=[],self=null,selected='A',mouse=null,pending=false;
 function grid(){
  ctx.save();ctx.strokeStyle='#405b57';ctx.lineWidth=.5;
  for(let i=0;i<=10;i++){const n=i*canvas.width/10;ctx.beginPath();ctx.moveTo(n,0);ctx.lineTo(n,canvas.height);ctx.moveTo(0,n);ctx.lineTo(canvas.width,n);ctx.stroke();}
