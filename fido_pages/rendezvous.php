@@ -14,7 +14,7 @@ $lateral=$rangeRate===null?null:sqrt(max(0.,$relSpeed*$relSpeed-$rangeRate*$rang
 ?>
 <div class="fd-grid">
 <section><h3>RELATIVE MOTION</h3><?php fidoRows(['RANGE KM'=>fidoN($range/1000,4),'RANGE RATE M/S'=>fidoN($rangeRate===null?null:$rangeRate,2),'REL SPEED M/S'=>fidoN($relSpeed,2),'TRANSVERSE SPEED M/S'=>fidoN($lateral===null?null:$lateral,2)]);?></section>
-<section><h3>RENDEZVOUS CONDITIONS</h3><?php fidoRows(['CLOSURE'=>$rangeRate===null?'---':($rangeRate>0?'CLOSING':($rangeRate<0?'OPENING':'NO RANGE CHANGE')),'PRIMARY VEHICLE'=>'CSM','SECONDARY VEHICLE'=>'LM','INTERCEPT SOLUTION'=>'NOT AVAILABLE']);?></section>
+<section><h3>RENDEZVOUS CONDITIONS</h3><?php fidoRows(['CLOSURE'=>$rangeRate===null?'---':($rangeRate>0?'CLOSING':($rangeRate<0?'OPENING':'NO RANGE CHANGE')),'PRIMARY VEHICLE'=>'CSM','SECONDARY VEHICLE'=>'LM','INTERCEPT SOLUTION'=>'RTCC SOLVER READY']);?></section>
 </div>
-<div class="fd-note">RELATIVE TRAJECTORY SOLUTION. TARGETING AND MANEUVER COMPUTATION NOT YET AVAILABLE.</div>
+<div class="fd-note">RTCC NUMERICAL RENDEZVOUS TARGETING IS AVAILABLE AS AN ADVISORY SOLUTION. <a href="rtcc_solution.php" target="_blank" rel="noopener" style="color:#b4e4cf">CALCULATE RENDEZVOUS SOLUTION</a>. DOES NOT COMMAND ENGINES.</div>
 <?php endif;?>
