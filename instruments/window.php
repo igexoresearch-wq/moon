@@ -1,6 +1,8 @@
 <?php
 // A single reusable optical window. Its observer is supplied by console.php.
 // All graphics are rendered here; the console page never reloads.
+require_once dirname(__DIR__).'/star_alignment.php';
+$windowStars=moonStarCatalog();
 $windowId='optical-'.bin2hex(random_bytes(6));
 ?>
 <div style="width:400px;height:400px;position:relative;background:#000;overflow:hidden;clip-path:polygon(0 75%,75% 0,100% 0,100% 100%,0 100%)">
@@ -26,9 +28,7 @@ const id=<?=json_encode($windowId)?>;
 const status=document.getElementById(id+'-status');
 const skyStatus=document.getElementById(id+'-sky-status');
 import('./instruments/star_field.js').then(async ({drawStarField})=>{
- const response=await fetch('star_catalog.php',{cache:'no-store'});
- if(!response.ok)throw Error('star catalog unavailable');
- const {stars}=await response.json();
+ const stars=<?=json_encode($windowStars,JSON_THROW_ON_ERROR)?>;
  const sky=document.getElementById(id+'-stars'),ctx=sky.getContext('2d');
  let inFlight=false;
  async function paint(){
