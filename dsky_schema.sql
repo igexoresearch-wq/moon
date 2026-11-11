@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS dsky_programs (
  CONSTRAINT fk_dsky_program_craft FOREIGN KEY(craft_id) REFERENCES objects(id)
 ) ENGINE=InnoDB;
 -- Four slots per program are nullable; absent slots are not editable. Numeric
--- inputs use one implied decimal digit: 1532 => 153.2 degrees, 0010 => 1.0 s.
--- CM SPS burn time (seconds) is an integer input: scale=1, '0010' = 10 s.
+-- Input encoding is program-specific: with scale=10, 1532 means 153.2 degrees.
+-- With scale=1, the CM SPS duration 0010 means 10 seconds.
 INSERT INTO dsky_programs
 (craft_id,program_no,title,operation,config_json,field1_label,field1_min,field1_max)
 VALUES
