@@ -13,7 +13,7 @@ $rangeRate=$range>0?-array_sum(array_map(static fn($a,$b)=>$a*$b,$separation,$re
 $lateral=$rangeRate===null?null:sqrt(max(0.,$relSpeed*$relSpeed-$rangeRate*$rangeRate));
 ?>
 <div class="fd-grid">
-<section><h3>RELATIVE MOTION</h3><?php fidoRows(['RANGE N MI'=>fidoN($range/1852,4),'RANGE RATE FT/SEC'=>fidoN($rangeRate===null?null:$rangeRate*3.280839895,2),'REL SPEED FT/SEC'=>fidoN($relSpeed*3.280839895,2),'TRANSVERSE SPEED FT/SEC'=>fidoN($lateral===null?null:$lateral*3.280839895,2)]);?></section>
+<section><h3>RELATIVE MOTION</h3><?php fidoRows(['RANGE KM'=>fidoN($range/1000,4),'RANGE RATE M/S'=>fidoN($rangeRate===null?null:$rangeRate,2),'REL SPEED M/S'=>fidoN($relSpeed,2),'TRANSVERSE SPEED M/S'=>fidoN($lateral===null?null:$lateral,2)]);?></section>
 <section><h3>RENDEZVOUS CONDITIONS</h3><?php fidoRows(['CLOSURE'=>$rangeRate===null?'---':($rangeRate>0?'CLOSING':($rangeRate<0?'OPENING':'NO RANGE CHANGE')),'PRIMARY VEHICLE'=>'CSM','SECONDARY VEHICLE'=>'LM','INTERCEPT SOLUTION'=>'NOT AVAILABLE']);?></section>
 </div>
 <div class="fd-note">RELATIVE TRAJECTORY SOLUTION. TARGETING AND MANEUVER COMPUTATION NOT YET AVAILABLE.</div>
