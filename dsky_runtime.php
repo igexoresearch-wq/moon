@@ -48,13 +48,15 @@ function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $co
  $obj=$db->query('SELECT active,pitch,yaw,roll,pitch_rate,yaw_rate,roll_rate FROM objects WHERE id='.(int)$craft.' FOR UPDATE')->fetch_assoc();
  if(!$obj||(int)$obj['active']!==1){moonDskyFailure($db,$craft,$slot,'CRAFT NOT ACTIVE');return;}
  $finished=true;
+ $q=$db->prepare("UPDATE dsky_registers SET message=NULL WHERE craft_id=? AND register_no=? AND state='running'");
+ $q->bind_param('ii',$craft,$slot);$q->execute();
  foreach($axes as $index=>$name){
   $field='field'.($index+1);
   if($reg[$field]===null){moonDskyFailure($db,$craft,$slot,'TARGET NOT ENTERED');return;}
   $target=(float)$reg[$field]/$scale;
   $error=moonDskyAxisError((float)$obj[$name],$target);
   $rate=(float)$obj[$name.'_rate'];
-  if(abs($error)<=0.5 && abs($rate)<=0.15)continue;
+  if(abs($error)<=0.5 && abs($rate)<=0.02)continue;
   $finished=false;
   // Stop-distance anticipation; only physical RCS impulses adjust angular rate.
   // One RCS pulse per axis per simulation second at most.
@@ -69,8 +71,16 @@ function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $co
   $desired=abs($rate)>0.05 && (($error*$rate<0)||abs($error)<=$brake)
     ? ($rate>0?-1:1)
     : ($error>0?1:-1);
-  if(!moonDskyRcsPulse($db,$craft,$name,$desired)){
-   moonDskyFailure($db,$craft,$slot,'RCS POWER / FUEL / ATTACHMENT');
+  $pulse=null;
+  if($desired*$rate<0){
+   $angularAcceleration=(float)$rcs['thrust_n']*(float)$rcs['torque_arm_m']
+     /max(1.,(float)$rcs['inertia_kg_m2'])*180/M_PI;
+   if($angularAcceleration>0)$pulse=min((float)$rcs['pulse_seconds'],abs($rate)/$angularAcceleration);
+  }
+  if(!moonDskyRcsPulse($db,$craft,$name,$desired,$pulse)){
+   $reason='RCS HOLD - POWER / FUEL / ATTACHMENT';
+   $q=$db->prepare('UPDATE dsky_registers SET message=? WHERE craft_id=? AND register_no=?');
+   $q->bind_param('sii',$reason,$craft,$slot);$q->execute();
    return;
   }
  }
