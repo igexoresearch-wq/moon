@@ -28,6 +28,18 @@ export function starOcculted(dir,self,objects){
 export function drawStarField(ctx,canvas,stars,self,objects,{annotate=true,clear=true}={}){
  if(clear)ctx.clearRect(0,0,canvas.width,canvas.height);
  const basis=starBasis(self),scale=canvas.width/49;
+ // Faint training constellation: the A-B and A-C rays meet at a corner.
+ // Lines are an educational overlay, not real luminous filaments.
+ const visible={};
+ for(const star of stars.filter(t=>['A','B','C'].includes(t.id))){
+  const p=starProject(star.vector,basis);
+  if(p&&!starOcculted(star.vector,self,objects))visible[star.id]=[
+   canvas.width/2+p.x*scale,canvas.height/2-p.y*scale];
+ }
+ ctx.strokeStyle='rgba(133,177,199,.38)';ctx.lineWidth=1;
+ for(const id of ['B','C'])if(visible.A&&visible[id]){
+  ctx.beginPath();ctx.moveTo(...visible.A);ctx.lineTo(...visible[id]);ctx.stroke();
+ }
  for(const s of stars){
   const pos=starProject(s.vector,basis);
   if(!pos||starOcculted(s.vector,self,objects))continue;
