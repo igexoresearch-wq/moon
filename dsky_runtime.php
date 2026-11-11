@@ -17,7 +17,7 @@ function moonDskyFailure(mysqli $db,int $craft,int $slot,string $reason):void {
  $q->bind_param('sii',$reason,$craft,$slot);$q->execute();
 }
 function moonDskyEngineOff(mysqli $db,int $id):void {
- $q=$db->prepare('UPDATE propulsion_engines SET command_on=0 WHERE id=?');
+ $q=$db->prepare('UPDATE propulsion_engines SET command_on=0,firing=0 WHERE id=?');
  $q->bind_param('i',$id);$q->execute();
 }
 function moonDskyEngineIds(array $config):array {
