@@ -43,7 +43,7 @@ const skyStatus=document.getElementById(id+'-sky-status');
    if(!self||Number(self.active)!==1){ctx.clearRect(0,0,400,400);skyStatus.textContent='SPACECRAFT INACTIVE';return;}
    // Older deployed star_field.js draws stars but returns no statistics.
    // Calculate a fallback count so mixed-version installs keep rendering.
-   const rendered=drawStarField(ctx,sky,stars,self,objects,{annotate:true});
+   const rendered=drawStarField(ctx,sky,stars,self,objects);
    const sight=rendered&&typeof rendered.drawn==='number'?rendered:(()=>{
     let inFov=0,drawn=0,referenceVisible=0;
     const basis=starBasis(self);
