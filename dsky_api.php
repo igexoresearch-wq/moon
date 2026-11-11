@@ -81,9 +81,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $program=(int)$r['program_no'];$q->bind_param('ii',$craft,$program);$q->execute();$p=$q->get_result()->fetch_assoc();
     if($p&&$p['operation']==='burn_seconds'){
      $cfg=json_decode($p['config_json'],true);
-     if(is_array($cfg)&&isset($cfg['engine_id'])){
-      $engine=(int)$cfg['engine_id'];
-      $q=$conn->prepare('UPDATE propulsion_engines SET command_on=0 WHERE id=?');$q->bind_param('i',$engine);$q->execute();
+     if(is_array($cfg)){
+      $ids=$cfg['engine_ids']??(isset($cfg['engine_id'])?[$cfg['engine_id']]:[]);
+      if(is_array($ids)){
+       $q=$conn->prepare('UPDATE propulsion_engines SET command_on=0 WHERE id=?');
+       foreach($ids as $rawId){$engine=(int)$rawId;if($engine<=0)continue;
+        $q->bind_param('i',$engine);$q->execute();
+       }
+      }
      }
     }
    }
