@@ -20,7 +20,8 @@ $sextantId='sext-'.bin2hex(random_bytes(4));
 <div class="sext-instructions">P30: ENTER PACKED XXYY FOR STARS A, B, C IN R1-R3. 50=ZERO; EACH COUNT=0.5°. X RIGHT, Y UP. MOVE THE SEXTANT CURSOR TO A STAR, THEN COPY PACKED CODE INTO DSKY. HOLD SPACECRAFT ATTITUDE STEADY DURING ALL THREE SIGHTS.</div>
 </div>
 <script type="module">
-import {drawStarField,starBasis,starProject,starOcculted} from './instruments/star_field.js?v=3';
+// Shared star projection logic is inserted server-side to avoid ES module fetch failures.
+<?=preg_replace('/^export /m','',file_get_contents(__DIR__.'/star_field.js'))?>
 const root=document.getElementById(<?=json_encode($sextantId)?>),canvas=root.querySelector('canvas'),ctx=canvas.getContext('2d'),craft=Number(root.dataset.craft);
 const stars=<?=json_encode($sextantStars,JSON_THROW_ON_ERROR)?>;
 let objects=[],self=null,selected='A',mouse=null,pending=false;
