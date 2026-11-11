@@ -8,7 +8,6 @@ $windowId='optical-'.bin2hex(random_bytes(6));
 <div style="width:400px;height:400px;position:relative;background:#000;overflow:hidden;clip-path:polygon(0 75%,75% 0,100% 0,100% 100%,0 100%)">
   <canvas id="<?=htmlspecialchars($windowId,ENT_QUOTES)?>" width="400" height="400" style="display:block;width:400px;height:400px"></canvas>
   <canvas id="<?=htmlspecialchars($windowId,ENT_QUOTES)?>-stars" width="400" height="400" style="position:absolute;inset:0;pointer-events:none"></canvas>
-  <div id="<?=htmlspecialchars($windowId,ENT_QUOTES)?>-sky-status" style="position:absolute;left:65px;bottom:9px;right:9px;z-index:4;color:#e1e8e2;background:rgba(0,0,0,.76);font:11px monospace;padding:5px 7px;pointer-events:none">STAR CATALOG LOADING</div>
   <svg viewBox="0 0 400 400" width="400" height="400" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none">
     <!-- Clipped-corner CM viewport border. -->
     <path d="M 0 300 L 300 0 L 400 0 L 400 400 L 0 400 Z" fill="none" stroke="#555" stroke-width="6"/>
@@ -26,7 +25,6 @@ $windowId='optical-'.bin2hex(random_bytes(6));
 <script type="module">
 const id=<?=json_encode($windowId)?>;
 const status=document.getElementById(id+'-status');
-const skyStatus=document.getElementById(id+'-sky-status');
 // Render the shared star code inline: GoDaddy need not serve an ES module.
 <?=preg_replace('/^export /m','',file_get_contents(__DIR__.'/star_field.js'))?>
 {
@@ -40,27 +38,9 @@ const skyStatus=document.getElementById(id+'-sky-status');
    if(!res.ok)return;
    const data=await res.json(),objects=data.objects||[];
    const self=objects.find(o=>Number(o.id)===<?=(int)$observerId?>);
-   if(!self||Number(self.active)!==1){ctx.clearRect(0,0,400,400);skyStatus.textContent='SPACECRAFT INACTIVE';return;}
-   // Older deployed star_field.js draws stars but returns no statistics.
-   // Calculate a fallback count so mixed-version installs keep rendering.
-   const rendered=drawStarField(ctx,sky,stars,self,objects);
-   const sight=rendered&&typeof rendered.drawn==='number'?rendered:(()=>{
-    let inFov=0,drawn=0,referenceVisible=0;
-    const basis=starBasis(self);
-    for(const star of stars){
-     if(!starProject(star.vector,basis))continue;
-     inFov++;
-     if(starOcculted(star.vector,self,objects))continue;
-     drawn++;
-     if(star.group==='TRIAD')referenceVisible++;
-    }
-    return {inFov,drawn,referenceVisible};
-   })();
-   skyStatus.textContent=sight.drawn===0
-    ?(sight.inFov>0?'STARS OCCULTED BY EARTH / MOON':'NO STARS IN FOV — CHANGE ATTITUDE')
-    :'VISIBLE STARS '+sight.drawn+' · REFERENCE '+sight.referenceVisible+'/3'+
-      (sight.referenceVisible<3?' · POINT NEAR INERTIAL +X FOR TRIAD':'');
-  }catch(e){skyStatus.textContent='STAR TELEMETRY ERROR: '+e.message;console.warn('Star window:',e.message)}finally{inFlight=false;}
+   if(!self||Number(self.active)!==1){ctx.clearRect(0,0,400,400);return;}
+   drawStarField(ctx,sky,stars,self,objects);
+  }catch(e){console.warn('Star window telemetry:',e.message)}finally{inFlight=false;}
  }
  paint();
  const starTimer=setInterval(paint,1000);
