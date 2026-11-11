@@ -94,7 +94,9 @@ $dcId='dsky-'.bin2hex(random_bytes(5));
    const value=d?.['field'+i];
    const row=el.querySelector('[data-field="'+i+'"]');
    row.querySelector('button').disabled=!label;
-   row.querySelector('[data-value]').textContent=value===null||value===undefined?'----':String(Math.round(Number(value))).padStart(4,'0');
+   const scale=Number(p?.config_json?JSON.parse(p.config_json).scale:1)||1;
+   const raw=value===null||value===undefined?null:String(Math.round(Number(value))).padStart(4,'0');
+   row.querySelector('[data-value]').textContent=raw===null?'----':scale===10?raw.slice(0,-1)+'.'+raw.slice(-1):raw;
    row.querySelector('[data-label]').textContent=label||'';
    row.querySelector('[data-required]').classList.toggle('lit',!!label&&value===null);
    row.classList.toggle('selected',mode==='field'+i);
@@ -110,7 +112,7 @@ $dcId='dsky-'.bin2hex(random_bytes(5));
   if(digits.length>=4)return;digits+=b.dataset.digit;showInput();
  }));
  el.querySelectorAll('[data-select]').forEach(b=>b.addEventListener('click',()=>{
-  if(b.disabled)return;const i=Number(b.dataset.select);mode='field'+i;digits='';render();message('');
+  if(b.disabled)return;const i=Number(b.dataset.select);mode=mode==='field'+i?'program':'field'+i;digits='';render();message('');
  }));
  el.querySelectorAll('[data-clear]').forEach(b=>b.addEventListener('click',()=>{
   if(confirm('CLEAR EXECUTION REGISTER '+b.dataset.clear+'? Active commands will be aborted.'))request('clear',Number(b.dataset.clear));
