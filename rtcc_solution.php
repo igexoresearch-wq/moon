@@ -17,7 +17,6 @@ try{
   echo json_encode($result,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT);exit;
  }
 }catch(Throwable $e){
- if($conn->errno===0){} // no outward disclosure of database details
  try{$conn->rollback();}catch(Throwable $ignored){}
  error_log('Moon RTCC targeting: '.$e->getMessage());
  if($wantJson){http_response_code(422);header('Content-Type: application/json; charset=utf-8');
