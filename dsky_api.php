@@ -62,12 +62,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    for($i=1;$i<=4;$i++)if($p['field'.$i.'_label']!==null &&
      ($d['field'.$i]===null||(float)$d['field'.$i]<(float)$p['field'.$i.'_min']||(float)$d['field'.$i]>(float)$p['field'.$i.'_max']))
       throw new DomainException('REQUIRED DATA MISSING');
-   // Completed and failed registers remain visibly occupied until CLEAR.
-   $q=$conn->prepare("SELECT register_no FROM dsky_registers WHERE craft_id=? AND state='empty' ORDER BY register_no LIMIT 1 FOR UPDATE");
+   // Completed registers are reusable; failed or aborted registers require a manual CLEAR.
+   $q=$conn->prepare("SELECT register_no FROM dsky_registers WHERE craft_id=? AND state IN ('empty','complete') ORDER BY register_no LIMIT 1 FOR UPDATE");
    $q->bind_param('i',$craft);$q->execute();$slot=$q->get_result()->fetch_assoc();
    if(!$slot)throw new DomainException('ALL FIVE REGISTERS OCCUPIED');
    $num=(int)$slot['register_no'];
-   $q=$conn->prepare("UPDATE dsky_registers SET program_no=?,field1=?,field2=?,field3=?,field4=?,state='queued',started_tick=NULL,elapsed_ticks=0,message=NULL WHERE craft_id=? AND register_no=? AND state='empty'");
+   $q=$conn->prepare("UPDATE dsky_registers SET program_no=?,field1=?,field2=?,field3=?,field4=?,state='queued',started_tick=NULL,elapsed_ticks=0,message=NULL WHERE craft_id=? AND register_no=? AND state IN ('empty','complete')");
    $q->bind_param('iddddii',$program,$d['field1'],$d['field2'],$d['field3'],$d['field4'],$craft,$num);
    $q->execute();if($q->affected_rows!==1)throw new DomainException('REGISTER OCCUPIED');
    $q=$conn->prepare('UPDATE dsky_drafts SET confirmed=1 WHERE craft_id=?');$q->bind_param('i',$craft);$q->execute();
