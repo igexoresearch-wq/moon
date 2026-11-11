@@ -87,7 +87,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
      if(is_array($cfg)){
       $ids=$cfg['engine_ids']??(isset($cfg['engine_id'])?[$cfg['engine_id']]:[]);
       if(is_array($ids)){
-       $q=$conn->prepare('UPDATE propulsion_engines SET command_on=0 WHERE id=?');
+       $q=$conn->prepare('UPDATE propulsion_engines SET command_on=0,firing=0 WHERE id=?');
        foreach($ids as $rawId){$engine=(int)$rawId;if($engine<=0)continue;
         $q->bind_param('i',$engine);$q->execute();
        }
