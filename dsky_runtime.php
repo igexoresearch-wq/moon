@@ -73,7 +73,7 @@ function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $co
 function moonDskyBeforePhysics(mysqli $db,int $nextTick):void {
  $rows=$db->query("SELECT r.*,p.operation,p.config_json FROM dsky_registers r
  JOIN dsky_programs p ON p.craft_id=r.craft_id AND p.program_no=r.program_no
- WHERE r.state IN ('queued','running') ORDER BY r.craft_id,r.register_no FOR UPDATE")->fetch_all(MYSQLI_ASSOC);
+ WHERE r.state IN ('queued','running') ORDER BY r.craft_id,CASE WHEN r.state='running' THEN 0 ELSE 1 END,r.register_no FOR UPDATE")->fetch_all(MYSQLI_ASSOC);
  $active=[];
  foreach($rows as $r){
   $craft=(int)$r['craft_id'];$slot=(int)$r['register_no'];$kind=(string)$r['operation'];
