@@ -2,6 +2,15 @@
 declare(strict_types=1);
 require_once __DIR__.'/dsky_rcs.php';
 require_once __DIR__.'/propulsion.php';
+function moonDskyInstalled(mysqli $db):bool {
+ static $available=null;
+ if($available!==null)return $available;
+ $tables=[];
+ $q=$db->query("SHOW TABLES LIKE 'dsky_%'");
+ while($r=$q->fetch_row())$tables[]=$r[0];
+ return $available=in_array('dsky_programs',$tables,true)&&in_array('dsky_registers',$tables,true);
+}
+
 
 function moonDskyFailure(mysqli $db,int $craft,int $slot,string $reason):void {
  $q=$db->prepare("UPDATE dsky_registers SET state='failed',message=? WHERE craft_id=? AND register_no=?");
