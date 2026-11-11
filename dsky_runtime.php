@@ -163,8 +163,10 @@ function moonDskyPlatformAlign(mysqli $db,int $craft,int $slot,array $reg,int $n
   $q->execute();
   // The next DSKY IMU rate derivative must start from the new reference,
   // rather than interpreting alignment as an instantaneous spacecraft turn.
-  $q=$db->prepare('DELETE FROM dsky_imu_samples WHERE craft_id=?');
-  $q->bind_param('i',$craft);$q->execute();
+  if($db->query("SHOW TABLES LIKE 'dsky_imu_samples'")->fetch_row()){
+   $q=$db->prepare('DELETE FROM dsky_imu_samples WHERE craft_id=?');
+   $q->bind_param('i',$craft);$q->execute();
+  }
   $q=$db->prepare("UPDATE dsky_registers SET state='complete',message=? WHERE craft_id=? AND register_no=?");
   $message=sprintf('ALIGNED / SIGHT ERR %.2f DEG',$solution['max_residual_deg']);
   $q->bind_param('sii',$message,$craft,$slot);$q->execute();
