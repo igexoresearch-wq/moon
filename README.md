@@ -23,3 +23,36 @@ The existing `physics.php` calls `propulsion.php` during each one-second transac
 **Assembly limitation:** The original `schema.sql` object dependencies do not describe a complete launch stack from CSM → SM → S-IVB → S-II → S-IC. The new propulsion interlocks intentionally refuse to ignite an incompletely attached stack; no live attachment relationships have been changed. Future launch/reset and staging code must set those dependencies and active flags properly. The LM requires ascent-stage root with descent stage attached for descent thrust, and descent stage detached for ascent thrust. Current surface-lock behavior also requires a later liftoff update before launch from a landed condition.
 
 **Model approximations:** Nominal thrust and mass-flow constants are sourced from Apollo reference specifications but are not yet altitude-dependent, gimbaled, pressure-sensitive, or coupled to guidance. The combined-tank model ignores fuel/oxidizer mixture imbalance, ullage, pressure and reserve flow. Per-engine ignition counts track limited restarts where known. The engine's integer command and throttle fields are reserved for future authenticated flight programming—not exposed by a public endpoint. No RCS engines were added in this main-propulsion pass.
+
+## Simplified mission computer / DSKY
+
+The new `instruments/dsky.php` provides four selectable numeric input registers (R1–R4), a PROGRAM keypad, ENTER, EXECUTE, and five persistent execution registers. A CM and LM computer share the same interface design but have independent database state. Currently only CM programs 1–5 are installed. LM programs can be added later by SQL.
+
+**Deploy and initialize in this order:**
+1. Ensure the existing `rcs_schema.sql` and `propulsion_schema.sql` are already installed, with their supporting PHP worker files deployed. The new system does not recreate them.
+2. Upload `dsky_api.php`, `dsky_rcs.php`, `dsky_runtime.php`, and `instruments/dsky.php`.
+3. Import `dsky_schema.sql` into the existing `moonland` database in phpMyAdmin. This creates program definitions, entry drafts, five registers per vehicle, the omitted CM yaw-right RCS component and console instrument placement. No simulation tables are reset.
+4. Deploy the updated `execute.php`. Its one-second transaction runs DSKY commands before orbital physics and verifies actual propulsion afterward.
+
+**CM program catalog:**
+- Program 1 — timed SPS burn. R1 is integer seconds, e.g. `0010` = ten seconds. The engine burns only if the required SM attachment and tank/engine conditions permit.
+- Program 2 — target pitch. R1 has one implied decimal: `1532` = 153.2 degrees.
+- Program 3 — target yaw, same encoding.
+- Program 4 — target roll, same encoding.
+- Program 5 — target pitch, yaw and roll; R1, R2 and R3 respectively. R4 is unused and cannot be selected.
+
+Press PROGRAM, digits, ENTER to load a program; select an R1–R4 button, enter digits, ENTER for each required number; then EXECUTE queues it. The execution registers persist across page reloads and worker cycles. Queued tasks wait if another task is already using the same class of actuator. Completed slots may be reused; failed tasks remain until manually cleared. CLEAR terminates a live timed burn or interrupts an attitude target. During a target maneuver the control computer applies actual RCS pulses that consume their fuel and oxidizer rather than setting attitude directly; it attempts to brake angular velocity before declaring completion. The RCS must be powered and available. A power/fuel hold remains occupied until the condition clears or the user aborts it.
+
+**SQL-extensible programs:** `dsky_programs` stores program number, labels for up to four nullable entry windows, min/max limits, and a JSON instruction describing an allowed operation. It does not contain arbitrary executable PHP, HTML or JavaScript. This allows new programs in the existing two families (`burn_seconds` and `attitude_target`) through SQL alone, without changing DSKY code.
+
+Example: a second pitch program without any PHP edits:
+```sql
+INSERT INTO dsky_programs
+(craft_id,program_no,title,operation,config_json,field1_label,field1_min,field1_max)
+VALUES
+(3,20,'PITCH HOLD','attitude_target',
+ JSON_OBJECT('axis','pitch','scale',10),'PITCH DEG',0,3599);
+```
+For group engines the burn configuration can instead specify `engine_ids` as a JSON array. Optional `throttle_field` and `throttle_scale` keys allow a future SQL-defined program to use a second input for approved engine throttling, while keeping hardware restrictions. The executable operation set is deliberately restricted: functions such as new guidance laws, actual docking, separation, trajectory targeting and data retrieval will need implemented physics/read-only handlers before their SQL rows can be enabled.
+
+**Known limitations before live use:** The RCS controller uses the project's existing simplified torque/inertia model, not a full rotational rigid-body integration or historic spacecraft autopilot. A powered RCS system's existing component/electrical behavior is reused; no new per-pulse electrical loads have been claimed. The SPS engine still lacks a detailed electrically actuated valve and ignition circuit model. Multi-stage launch dependencies and any remaining staging logic must be completed before launch programs can work. SQL can select installed actions but cannot safely invent missing actuators or physics. PHP lint workflow was added, but neither GoDaddy runtime tests nor mission-profile validation have been completed.
