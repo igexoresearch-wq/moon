@@ -28,6 +28,7 @@ export function starOcculted(dir,self,objects){
 export function drawStarField(ctx,canvas,stars,self,objects,{annotate=true,clear=true}={}){
  if(clear)ctx.clearRect(0,0,canvas.width,canvas.height);
  const basis=starBasis(self),scale=canvas.width/49;
+ let inFov=0,hidden=0,drawn=0,referenceVisible=0;
  // Faint training constellation: the A-B and A-C rays meet at a corner.
  // Lines are an educational overlay, not real luminous filaments.
  const visible={};
@@ -42,7 +43,11 @@ export function drawStarField(ctx,canvas,stars,self,objects,{annotate=true,clear
  }
  for(const s of stars){
   const pos=starProject(s.vector,basis);
-  if(!pos||starOcculted(s.vector,self,objects))continue;
+  if(!pos)continue;
+  inFov++;
+  if(starOcculted(s.vector,self,objects)){hidden++;continue;}
+  drawn++;
+  if(s.group==='TRIAD')referenceVisible++;
   const px=canvas.width/2+pos.x*scale,py=canvas.height/2-pos.y*scale;
   const bright=s.group==='TRIAD',radius=bright?3.5:s.group==='FIELD'?.5+Math.max(0,5-Number(s.magnitude))*.23:2.2;
   ctx.beginPath();ctx.arc(px,py,radius,0,2*Math.PI);
@@ -51,4 +56,5 @@ export function drawStarField(ctx,canvas,stars,self,objects,{annotate=true,clear
    ctx.font='bold 11px monospace';ctx.fillStyle='#f3eac4';ctx.fillText(s.id,px+6,py-6);
   }
  }
+ return {inFov,hidden,drawn,referenceVisible};
 }
