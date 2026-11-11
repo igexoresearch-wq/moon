@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__.'/dsky_rcs.php';
 require_once __DIR__.'/propulsion.php';
+require_once __DIR__.'/star_alignment.php';
 function moonDskyInstalled(mysqli $db):bool {
  static $available=null;
  if($available!==null)return $available;
@@ -130,6 +131,47 @@ function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $co
   $q->bind_param('ii',$craft,$slot);$q->execute();
  }
 }
+/**
+ * P30 three-star optical alignment: the ONLY output is the IMU estimate.
+ * No reads or writes of the true orientation columns in objects.
+ * Sightings are assumed collected at one stable spacecraft attitude.
+ */
+function moonDskyPlatformAlign(mysqli $db,int $craft,int $slot,array $reg,int $nextTick):void {
+ try{
+  $codes=[];
+  foreach(['field1','field2','field3'] as $f){
+   if($reg[$f]===null)throw new DomainException('THREE SIGHTS REQUIRED');
+   $codes[]=(int)$reg[$f];
+  }
+  $solution=moonStarSolve($codes);
+  $key=$craft===3?'cm_imu':'lm_imu';
+  $q=$db->prepare('SELECT state FROM reliability_components WHERE component_key=? FOR UPDATE');
+  $q->bind_param('s',$key);$q->execute();$powered=$q->get_result()->fetch_assoc();
+  if(!$powered||(int)$powered['state']!==1){
+   moonDskyFailure($db,$craft,$slot,'IMU POWER UNAVAILABLE');return;
+  }
+  $q=$db->prepare('SELECT object_id,last_tick FROM imu WHERE object_id=? FOR UPDATE');
+  $q->bind_param('i',$craft);$q->execute();$imu=$q->get_result()->fetch_assoc();
+  if(!$imu||(int)$imu['last_tick']!==$nextTick-1){
+   moonDskyFailure($db,$craft,$slot,'IMU SAMPLE NOT CURRENT');return;
+  }
+  // P30 aligns platform only. No object pitch/yaw/roll lookups.
+  $pitch=$solution['pitch_deg'];$yaw=$solution['yaw_deg'];$roll=$solution['roll_deg'];
+  $tick=$nextTick-1;
+  $q=$db->prepare('UPDATE imu SET pitch_deg=?,yaw_deg=?,roll_deg=?,reference_pitch_deg=?,reference_yaw_deg=?,reference_roll_deg=?,aligned_at_tick=? WHERE object_id=?');
+  $q->bind_param('ddddddii',$pitch,$yaw,$roll,$pitch,$yaw,$roll,$tick,$craft);
+  $q->execute();
+  // The next DSKY IMU rate derivative must start from the new reference,
+  // rather than interpreting alignment as an instantaneous spacecraft turn.
+  $q=$db->prepare('DELETE FROM dsky_imu_samples WHERE craft_id=?');
+  $q->bind_param('i',$craft);$q->execute();
+  $q=$db->prepare("UPDATE dsky_registers SET state='complete',message=? WHERE craft_id=? AND register_no=?");
+  $message=sprintf('ALIGNED / SIGHT ERR %.2f DEG',$solution['max_residual_deg']);
+  $q->bind_param('sii',$message,$craft,$slot);$q->execute();
+ }catch(DomainException $e){
+  moonDskyFailure($db,$craft,$slot,$e->getMessage());
+ }
+}
 /** Must run just before moonV2Physics, within the same one-second transaction. */
 function moonDskyBeforePhysics(mysqli $db,int $nextTick):void {
  $rows=$db->query("SELECT r.*,p.operation,p.config_json FROM dsky_registers r
@@ -139,8 +181,8 @@ function moonDskyBeforePhysics(mysqli $db,int $nextTick):void {
  foreach($rows as $r){
   $craft=(int)$r['craft_id'];$slot=(int)$r['register_no'];$kind=(string)$r['operation'];
   if(!in_array($craft,[3,6],true)){moonDskyFailure($db,$craft,$slot,'INVALID COMPUTER');continue;}
-  if(!in_array($kind,['burn_seconds','attitude_target'],true)){moonDskyFailure($db,$craft,$slot,'INVALID OPERATION');continue;}
-  $group=$kind==='burn_seconds'?'engine':'attitude';
+  if(!in_array($kind,['burn_seconds','attitude_target','platform_align'],true)){moonDskyFailure($db,$craft,$slot,'INVALID OPERATION');continue;}
+  $group=$kind==='burn_seconds'?'engine':($kind==='platform_align'?'alignment':'attitude');
   if(isset($active[$craft][$group]))continue;
   $active[$craft][$group]=true;
   if($r['state']==='queued'){
@@ -148,6 +190,10 @@ function moonDskyBeforePhysics(mysqli $db,int $nextTick):void {
    $q->bind_param('iii',$nextTick,$craft,$slot);$q->execute();
   }
   $config=moonDskyConfig($r);
+  if($kind==='platform_align'){
+   moonDskyPlatformAlign($db,$craft,$slot,$r,$nextTick);
+   continue;
+  }
   if($kind==='attitude_target'){
    moonDskyTargetTick($db,$craft,$slot,$r,$config,$nextTick);
    continue;
