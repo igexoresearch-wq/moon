@@ -81,6 +81,9 @@ function moonPropulsionTick(mysqli $db,array $objects,float $dt):array {
    $canThrottle=(int)$e['throttleable']===1;
    $validThrottle=($canThrottle&&$throttle>= (float)$e['minimum_throttle_pct']&&$throttle<=100.)
      ||(!$canThrottle&&abs($throttle-100.)<0.00001);
+   // LM descent engine has a variable-thrust band (~10.6–63.8%)
+   // plus a separate fixed full-thrust operating point (100%).
+   if($vehicle===7&&$throttle>63.83&&$throttle<99.999)$validThrottle=false;
    $canStart=$previous||$maxStarts===0||$starts<$maxStarts;
    if(!$allowed||!$on||!$validThrottle||!$canStart||$available<=0.){
     // Invalid or inhibited commands are cancelled, never armed to fire later.
