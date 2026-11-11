@@ -71,3 +71,12 @@ INSERT IGNORE INTO dsky_drafts(craft_id) VALUES(3),(6);
 INSERT IGNORE INTO dsky_registers(craft_id,register_no) VALUES
 (3,1),(3,2),(3,3),(3,4),(3,5),
 (6,1),(6,2),(6,3),(6,4),(6,5);
+
+-- The original CM RCS seed omitted the positive-yaw jet. Register it so
+-- the programmed attitude controller can turn both directions.
+INSERT IGNORE INTO reliability_components(component_key,component_name,spacecraft_id)
+VALUES ('cm_rcs_yaw_right','CM RCS Yaw Right',3);
+-- Keep the existing console layout and add only the new computer instrument.
+INSERT IGNORE INTO console_instruments(console_id,file_name,pos_x,pos_y)
+VALUES ('cmc','dsky.php',780,60),('cmp','dsky.php',780,60),
+       ('lmc','dsky.php',780,60),('lmp','dsky.php',780,60);
