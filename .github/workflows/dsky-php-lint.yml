@@ -1,0 +1,20 @@
+name: Moon PHP syntax checks
+on:
+  push:
+    paths:
+      - "dsky_*.php"
+      - "instruments/dsky.php"
+      - "execute.php"
+      - "physics.php"
+      - ".github/workflows/dsky-php-lint.yml"
+  workflow_dispatch:
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check PHP syntax
+        run: |
+          for file in dsky_runtime.php dsky_rcs.php dsky_api.php instruments/dsky.php execute.php physics.php; do
+            php -l "$file" || exit 1
+          done
