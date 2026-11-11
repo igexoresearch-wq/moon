@@ -27,7 +27,7 @@ function moonStarCatalog():array {
  $stars=[];
  foreach($bright as $s)$stars[]=['id'=>$s['id'],'name'=>$s['name'],'vector'=>moonStarDirection($s['x'],$s['y']),'magnitude'=>$s['mag'],'group'=>$s['group']];
  // Deterministic, faint synthetic training star field, persistent in inertial space.
- for($i=0;$i<240;$i++){
+ for($i=0;$i<1800;$i++){
   $u=fmod(sin(($i+1)*127.1)*43758.5453,1.);if($u<0)$u+=1.;
   $v=fmod(sin(($i+1)*311.7)*25318.1742,1.);if($v<0)$v+=1.;
   $az=2*M_PI*$u;$z=2*$v-1.;$h=sqrt(max(0.,1-$z*$z));
