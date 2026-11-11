@@ -27,7 +27,9 @@ $windowId='optical-'.bin2hex(random_bytes(6));
 const id=<?=json_encode($windowId)?>;
 const status=document.getElementById(id+'-status');
 const skyStatus=document.getElementById(id+'-sky-status');
-import('./instruments/star_field.js?v=3').then(async ({drawStarField})=>{
+// Render the shared star code inline: GoDaddy need not serve an ES module.
+<?=preg_replace('/^export /m','',file_get_contents(__DIR__.'/star_field.js'))?>
+{
  const stars=<?=json_encode($windowStars,JSON_THROW_ON_ERROR)?>;
  const sky=document.getElementById(id+'-stars'),ctx=sky.getContext('2d');
  let inFlight=false;
@@ -49,7 +51,7 @@ import('./instruments/star_field.js?v=3').then(async ({drawStarField})=>{
  paint();
  const starTimer=setInterval(paint,1000);
  window.addEventListener('pagehide',()=>clearInterval(starTimer),{once:true});
-}).catch(err=>{skyStatus.textContent='STAR FIELD ERROR: '+err.message;console.warn('Star field unavailable:',err)});
+}
 import('./instruments/window3d.js').then(({startOpticalWindow})=>{
  startOpticalWindow(id,<?=(int)$observerId?>);
 }).catch(err=>{
