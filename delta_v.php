@@ -6,6 +6,11 @@ declare(strict_types=1);
  * delta-v [m/s] += g_forward [g0] * 9.80665 [m/s^2] * 1 [s].
  * No direct reads of object velocities or gravity. No double-integration.
  */
+function moonDeltaVInstalled(mysqli $db):bool {
+ static $installed=null;
+ if($installed!==null)return $installed;
+ return $installed=(bool)$db->query("SHOW TABLES LIKE 'delta_v_accumulators'")->fetch_row();
+}
 function moonDeltaVTick(mysqli $db,int $tick,float $dt=1.0):void {
  if($dt<=0.||!is_finite($dt))throw new InvalidArgumentException('Invalid delta-V time step');
  $rows=$db->query('SELECT craft_id,accumulated_mps,last_sample_tick,samples_integrated FROM delta_v_accumulators ORDER BY craft_id FOR UPDATE')->fetch_all(MYSQLI_ASSOC);
