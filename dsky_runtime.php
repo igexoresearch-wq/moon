@@ -39,27 +39,70 @@ function moonDskyAxisError(float $angle,float $target):float {
  $delta=fmod(fmod($target-$angle+180.,360.)+360.,360.)-180.;
  return $delta;
 }
-function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $config):void {
+function moonDskyImuHold(mysqli $db,int $craft,int $slot,string $reason):void {
+ $q=$db->prepare("UPDATE dsky_registers SET message=? WHERE craft_id=? AND register_no=? AND state='running'");
+ $q->bind_param('sii',$reason,$craft,$slot);$q->execute();
+}
+/**
+ * Acquire attitude and angular rate only from the instrument's successive
+ * estimated readings. This never reads objects.pitch/yaw/roll or true rates.
+ * IMU is sampled at the end of the preceding physics tick.
+ */
+function moonDskyImuObservation(mysqli $db,int $craft,int $expectedTick):?array {
+ static $historyAvailable=null;
+ if($historyAvailable===null){
+  $historyAvailable=(bool)$db->query("SHOW TABLES LIKE 'dsky_imu_samples'")->fetch_row();
+ }
+ if(!$historyAvailable)return null;
+ $q=$db->prepare('SELECT pitch_deg,yaw_deg,roll_deg,last_tick FROM imu WHERE object_id=? FOR UPDATE');
+ $q->bind_param('i',$craft);$q->execute();$imu=$q->get_result()->fetch_assoc();
+ if(!$imu||$imu['last_tick']===null||(int)$imu['last_tick']!==$expectedTick)return null;
+ $q=$db->prepare('SELECT * FROM dsky_imu_samples WHERE craft_id=? FOR UPDATE');
+ $q->bind_param('i',$craft);$q->execute();$prior=$q->get_result()->fetch_assoc();
+ $angles=[];$rates=[];
+ foreach(['pitch','yaw','roll'] as $axis){
+  $angles[$axis]=(float)$imu[$axis.'_deg'];
+  $rates[$axis]=null;
+ }
+ if($prior!==null && (int)$prior['imu_tick']<$expectedTick){
+  $dt=$expectedTick-(int)$prior['imu_tick'];
+  foreach(['pitch','yaw','roll'] as $axis){
+   $rates[$axis]=moonDskyAxisError((float)$prior[$axis.'_deg'],$angles[$axis])/$dt;
+  }
+ }
+ if($prior===null||(int)$prior['imu_tick']!==$expectedTick){
+  $q=$db->prepare('INSERT INTO dsky_imu_samples (craft_id,imu_tick,pitch_deg,yaw_deg,roll_deg) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE imu_tick=VALUES(imu_tick),pitch_deg=VALUES(pitch_deg),yaw_deg=VALUES(yaw_deg),roll_deg=VALUES(roll_deg)');
+  $q->bind_param('iiddd',$craft,$expectedTick,$angles['pitch'],$angles['yaw'],$angles['roll']);$q->execute();
+ }
+ return ['angles'=>$angles,'rates'=>$rates];
+}
+function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $config,int $nextTick):void {
  $axis=(string)($config['axis']??'');
  $axes=$axis==='all'?['pitch','yaw','roll']:[$axis];
  if(array_diff($axes,['pitch','yaw','roll'])){moonDskyFailure($db,$craft,$slot,'UNSUPPORTED AXIS');return;}
  $scale=(float)($config['scale']??0);
  if($scale<=0){moonDskyFailure($db,$craft,$slot,'INVALID SCALE');return;}
- $obj=$db->query('SELECT active,pitch,yaw,roll,pitch_rate,yaw_rate,roll_rate FROM objects WHERE id='.(int)$craft.' FOR UPDATE')->fetch_assoc();
- if(!$obj||(int)$obj['active']!==1){moonDskyFailure($db,$craft,$slot,'CRAFT NOT ACTIVE');return;}
+ $reading=moonDskyImuObservation($db,$craft,$nextTick-1);
+ if($reading===null){
+  moonDskyImuHold($db,$craft,$slot,'WAITING FOR FRESH IMU');
+  return;
+ }
+ foreach($axes as $name)if($reading['rates'][$name]===null){
+  moonDskyImuHold($db,$craft,$slot,'ACQUIRING IMU RATE');
+  return;
+ }
  $finished=true;
- $q=$db->prepare("UPDATE dsky_registers SET message=NULL WHERE craft_id=? AND register_no=? AND state='running'");
- $q->bind_param('ii',$craft,$slot);$q->execute();
+ moonDskyImuHold($db,$craft,$slot,'');
  foreach($axes as $index=>$name){
   $field='field'.($index+1);
   if($reg[$field]===null){moonDskyFailure($db,$craft,$slot,'TARGET NOT ENTERED');return;}
   $target=(float)$reg[$field]/$scale;
-  $error=moonDskyAxisError((float)$obj[$name],$target);
-  $rate=(float)$obj[$name.'_rate'];
+  $error=moonDskyAxisError($reading['angles'][$name],$target);
+  $rate=$reading['rates'][$name];
   if(abs($error)<=0.5 && abs($rate)<=0.02)continue;
   $finished=false;
-  // Stop-distance anticipation; only physical RCS impulses adjust angular rate.
-  // One RCS pulse per axis per simulation second at most.
+  // The stopping decision uses only the IMU angle and its inferred rate.
+  // The physical RCS jet then changes the real angular velocity.
   $system=$craft===3?4:6;
   $q=$db->prepare('SELECT thrust_n,torque_arm_m,inertia_kg_m2,pulse_seconds FROM rcs WHERE craft_id=?');
   $q->bind_param('i',$system);$q->execute();$rcs=$q->get_result()->fetch_assoc();
@@ -67,7 +110,7 @@ function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $co
   $dv=(float)$rcs['thrust_n']*(float)$rcs['torque_arm_m']*(float)$rcs['pulse_seconds']
     /max(1.,(float)$rcs['inertia_kg_m2'])*180/M_PI;
   if($dv<=0){moonDskyFailure($db,$craft,$slot,'RCS CALIBRATION');return;}
-  $brake=($rate*$rate)/(2*$dv); // angular stop distance with one pulse per second
+  $brake=($rate*$rate)/(2*$dv);
   $desired=abs($rate)>0.05 && (($error*$rate<0)||abs($error)<=$brake)
     ? ($rate>0?-1:1)
     : ($error>0?1:-1);
@@ -78,14 +121,12 @@ function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $co
    if($angularAcceleration>0)$pulse=min((float)$rcs['pulse_seconds'],abs($rate)/$angularAcceleration);
   }
   if(!moonDskyRcsPulse($db,$craft,$name,$desired,$pulse)){
-   $reason='RCS HOLD - POWER / FUEL / ATTACHMENT';
-   $q=$db->prepare('UPDATE dsky_registers SET message=? WHERE craft_id=? AND register_no=?');
-   $q->bind_param('sii',$reason,$craft,$slot);$q->execute();
+   moonDskyImuHold($db,$craft,$slot,'RCS HOLD - POWER / FUEL / ATTACHMENT');
    return;
   }
  }
  if($finished){
-  $q=$db->prepare("UPDATE dsky_registers SET state='complete',message='TARGET REACHED' WHERE craft_id=? AND register_no=?");
+  $q=$db->prepare("UPDATE dsky_registers SET state='complete',message='IMU TARGET REACHED' WHERE craft_id=? AND register_no=?");
   $q->bind_param('ii',$craft,$slot);$q->execute();
  }
 }
@@ -108,7 +149,7 @@ function moonDskyBeforePhysics(mysqli $db,int $nextTick):void {
   }
   $config=moonDskyConfig($r);
   if($kind==='attitude_target'){
-   moonDskyTargetTick($db,$craft,$slot,$r,$config);
+   moonDskyTargetTick($db,$craft,$slot,$r,$config,$nextTick);
    continue;
   }
   $scale=(float)($config['scale']??0);
