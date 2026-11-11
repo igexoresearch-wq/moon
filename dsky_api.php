@@ -43,6 +43,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    if(!$p||$p['field'.$value.'_label']===null)throw new DomainException('REGISTER NOT ASSIGNED');
    $q=$conn->prepare('UPDATE dsky_drafts SET selected_field=?,confirmed=0 WHERE craft_id=?');
    $q->bind_param('ii',$value,$craft);$q->execute();
+  }elseif($action==='deselect_field'){
+   $q=$conn->prepare('UPDATE dsky_drafts SET selected_field=NULL WHERE craft_id=?');
+   $q->bind_param('i',$craft);$q->execute();
   }elseif($action==='enter'){
    if(!is_int($value)||$value<0||$value>9999)throw new DomainException('ENTER FOUR DIGITS');
    $field=(int)($d['selected_field']??0);if($field<1||$field>4)throw new DomainException('SELECT A DATA REGISTER');
