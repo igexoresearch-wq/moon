@@ -30,6 +30,7 @@ require_once __DIR__.'/fuel_cells.php';
 require_once __DIR__.'/electrical.php';
 require_once __DIR__.'/rendezvous_radar.php';
 require_once __DIR__.'/g_meter.php';
+require_once __DIR__.'/delta_v.php';
 require_once __DIR__.'/dsky_runtime.php';
 // Invoke once per minute from cron; runs up to 60 simulated one-second ticks.
 // Prevent concurrent workers via a MySQL advisory lock.
@@ -62,6 +63,9 @@ try {
    $conn->query('SAVEPOINT moon_g_meter');
    try{
     moonGMeterTick($conn,(int)$clock['tick']+1);
+    // Accumulate only a successfully sampled one-second G-meter reading.
+    // Keep this inside the optional instrument savepoint.
+    if(moonDeltaVInstalled($conn))moonDeltaVTick($conn,(int)$clock['tick']+1,1.0);
     $conn->query('RELEASE SAVEPOINT moon_g_meter');
    }catch(Throwable $gError){
     $conn->query('ROLLBACK TO SAVEPOINT moon_g_meter');
