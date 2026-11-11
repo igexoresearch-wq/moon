@@ -78,5 +78,4 @@ INSERT IGNORE INTO reliability_components(component_key,component_name,spacecraf
 VALUES ('cm_rcs_yaw_right','CM RCS Yaw Right',3);
 -- Keep the existing console layout and add only the new computer instrument.
 INSERT IGNORE INTO console_instruments(console_id,file_name,pos_x,pos_y)
-VALUES ('cmc','dsky.php',780,60),('cmp','dsky.php',780,60),
-       ('lmc','dsky.php',780,60),('lmp','dsky.php',780,60);
+VALUES ('cmp','dsky.php',780,60),('lmp','dsky.php',780,60);
