@@ -62,9 +62,9 @@ function drawStarField(ctx,canvas,stars,self,objects,{clear=true}={}){
   if(!pos||starOcculted(star.vector,self,objects))continue;
   const x=canvas.width/2+pos.x*scale,y=canvas.height/2-pos.y*scale;
   const bright=star.group==='TRIAD';
-  const radius=bright?3.5:star.group==='KEY'?2.2:0.5+Math.max(0,5-Number(star.magnitude))*.23;
+  const radius=bright?2.4:star.group==='KEY'?2.0:0.5+Math.max(0,5-Number(star.magnitude))*.23;
   ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);
-  ctx.fillStyle=bright?'#ffdf9f':'#e6efff';ctx.fill();
+  ctx.fillStyle='#e6efff';ctx.fill();
  }
  // Deliberately NO labels, IDs, or constellation guide lines in the live sky.
 }
