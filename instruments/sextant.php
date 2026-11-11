@@ -41,7 +41,16 @@ function readout(x,y){
 function render(){
  ctx.clearRect(0,0,308,308);
  if(self&&stars.length){
-  const visibility=drawStarField(ctx,canvas,stars,self,objects,{annotate:true,clear:false});
+  const drawn=drawStarField(ctx,canvas,stars,self,objects,{annotate:true,clear:false});
+  const visibility=drawn&&typeof drawn.drawn==='number'?drawn:(()=>{
+   let inFov=0,visible=0;const basis=starBasis(self);
+   for(const star of stars){
+    if(!starProject(star.vector,basis))continue;
+    inFov++;
+    if(!starOcculted(star.vector,self,objects))visible++;
+   }
+   return {inFov,drawn:visible};
+  })();
   const s=stars.find(item=>item.id===selected);
   if(s){
    const p=starProject(s.vector,starBasis(self));
