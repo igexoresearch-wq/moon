@@ -5,6 +5,7 @@ $windowId='optical-'.bin2hex(random_bytes(6));
 ?>
 <div style="width:400px;height:400px;position:relative;background:#000;overflow:hidden;clip-path:polygon(0 75%,75% 0,100% 0,100% 100%,0 100%)">
   <canvas id="<?=htmlspecialchars($windowId,ENT_QUOTES)?>" width="400" height="400" style="display:block;width:400px;height:400px"></canvas>
+  <canvas id="<?=htmlspecialchars($windowId,ENT_QUOTES)?>-stars" width="400" height="400" style="position:absolute;inset:0;pointer-events:none"></canvas>
   <svg viewBox="0 0 400 400" width="400" height="400" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none">
     <!-- Clipped-corner CM viewport border. -->
     <path d="M 0 300 L 300 0 L 400 0 L 400 400 L 0 400 Z" fill="none" stroke="#555" stroke-width="6"/>
@@ -22,6 +23,27 @@ $windowId='optical-'.bin2hex(random_bytes(6));
 <script type="module">
 const id=<?=json_encode($windowId)?>;
 const status=document.getElementById(id+'-status');
+import('./instruments/star_field.js').then(async ({drawStarField})=>{
+ const response=await fetch('star_catalog.php',{cache:'force-cache'});
+ if(!response.ok)throw Error('star catalog unavailable');
+ const {stars}=await response.json();
+ const sky=document.getElementById(id+'-stars'),ctx=sky.getContext('2d');
+ let inFlight=false;
+ async function paint(){
+  if(inFlight||document.hidden)return;inFlight=true;
+  try{
+   const res=await fetch('state.php?observer='+<?=(int)$observerId?>,{cache:'no-store'});
+   if(!res.ok)return;
+   const data=await res.json(),objects=data.objects||[];
+   const self=objects.find(o=>Number(o.id)===<?=(int)$observerId?>);
+   if(!self||Number(self.active)!==1){ctx.clearRect(0,0,400,400);return;}
+   drawStarField(ctx,sky,stars,self,objects,{annotate:true});
+  }catch(e){console.warn('Star window:',e.message)}finally{inFlight=false;}
+ }
+ paint();
+ const starTimer=setInterval(paint,1000);
+ window.addEventListener('pagehide',()=>clearInterval(starTimer),{once:true});
+}).catch(err=>console.warn('Star field unavailable:',err));
 import('./instruments/window3d.js').then(({startOpticalWindow})=>{
  startOpticalWindow(id,<?=(int)$observerId?>);
 }).catch(err=>{
