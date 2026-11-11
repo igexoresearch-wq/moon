@@ -111,8 +111,11 @@ $dcId='dsky-'.bin2hex(random_bytes(5));
  el.querySelectorAll('[data-digit]').forEach(b=>b.addEventListener('click',()=>{
   if(digits.length>=4)return;digits+=b.dataset.digit;showInput();
  }));
- el.querySelectorAll('[data-select]').forEach(b=>b.addEventListener('click',()=>{
-  if(b.disabled)return;const i=Number(b.dataset.select);mode=mode==='field'+i?'program':'field'+i;digits='';render();message('');
+ el.querySelectorAll('[data-select]').forEach(b=>b.addEventListener('click',async()=>{
+  if(b.disabled||busy)return;
+  const i=Number(b.dataset.select),toggleOff=mode==='field'+i;
+  const ok=await request(toggleOff?'deselect_field':'select_field',toggleOff?null:i);
+  if(ok){mode=toggleOff?'program':'field'+i;digits='';render();message('');}
  }));
  el.querySelectorAll('[data-clear]').forEach(b=>b.addEventListener('click',()=>{
   if(confirm('CLEAR EXECUTION REGISTER '+b.dataset.clear+'? Active commands will be aborted.'))request('clear',Number(b.dataset.clear));
