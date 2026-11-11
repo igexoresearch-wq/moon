@@ -149,8 +149,12 @@ function moonDskyBeforePhysics(mysqli $db,int $nextTick):void {
   if(!$tank||(float)$tank['remaining_kg']<=0){
    moonDskyFailure($db,$craft,$slot,'NO PROPELLANT');moonDskyEnginesOff($db,$ids);continue;
   }
-  $q=$db->prepare('UPDATE propulsion_engines SET command_on=1,throttle_pct=? WHERE id=?');
-  foreach($ids as $id){$q->bind_param('di',$throttle,$id);$q->execute();}
+  // Ignite only on entry. If one engine later shuts down, do not silently
+  // restart it on subsequent ticks; the remaining engines may continue.
+  if($r['state']==='queued'){
+   $q=$db->prepare('UPDATE propulsion_engines SET command_on=1,throttle_pct=? WHERE id=?');
+   foreach($ids as $id){$q->bind_param('di',$throttle,$id);$q->execute();}
+  }
  }
 }
 /** After physics: verify actual ignition and count only seconds of real engine firing. */
