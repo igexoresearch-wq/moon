@@ -7,7 +7,7 @@ require_once __DIR__.'/reliability.php';
  * Uses the same propellant, impulse, component status and torque assumptions as
  * the current manual rcs_command.php. Called only inside an existing DB transaction.
  */
-function moonDskyRcsPulse(mysqli $db,int $craft,string $axis,int $sign):bool {
+function moonDskyRcsPulse(mysqli $db,int $craft,string $axis,int $sign,?float $pulseSeconds=null):bool {
  if(!in_array($craft,[3,6],true)||!in_array($axis,['pitch','yaw','roll'],true)||!in_array($sign,[-1,1],true))
   throw new InvalidArgumentException('Invalid RCS axis');
  $obj=$db->query('SELECT * FROM objects WHERE id='.(int)$craft.' FOR UPDATE')->fetch_assoc();
@@ -30,7 +30,7 @@ function moonDskyRcsPulse(mysqli $db,int $craft,string $axis,int $sign):bool {
  $cluster=$db->query("SELECT state FROM reliability_components WHERE component_key='".$prefix."_rcs_cluster' FOR UPDATE")->fetch_assoc();
  if(!$cluster||(int)$cluster['state']!==1)return false;
  if(!moonReliabilityCommand($db,$key,'DSKY RCS pulse')['allowed'])return false;
- $dt=(float)$rcs['pulse_seconds'];$isp=(float)$rcs['isp_s'];$thrust=(float)$rcs['thrust_n'];
+ $dt=$pulseSeconds===null?(float)$rcs['pulse_seconds']:min((float)$rcs['pulse_seconds'],max(0.,$pulseSeconds));$isp=(float)$rcs['isp_s'];$thrust=(float)$rcs['thrust_n'];
  $arm=(float)$rcs['torque_arm_m'];$inertia=(float)$rcs['inertia_kg_m2'];
  if($dt<=0||$isp<=0||$thrust<=0||$arm<=0||$inertia<=0)throw new RuntimeException('Invalid RCS calibration');
  $consumed=$thrust*$dt/($isp*9.80665);
