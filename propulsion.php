@@ -71,7 +71,7 @@ function moonPropulsionTick(mysqli $db,array $objects,float $dt):array {
  $forces=[];
  foreach($groups as $vehicle=>$members){
   $tank=$tanks[$vehicle]??null;
-  $allowed=$tank!==null&&isset($objects[$vehicle])&&moonPropulsionAllowed($objects,$vehicle]);
+  $allowed=$tank!==null&&isset($objects[$vehicle])&&moonPropulsionAllowed($objects,$vehicle);
   $available=$tank===null?0.:max(0.,(float)$tank['remaining_kg']);
   $request=[];$demand=0.;
   foreach($members as $e){
