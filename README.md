@@ -66,3 +66,17 @@ The CM and LM DSKY attitude-target programs now use `imu.pitch_deg`, `imu.yaw_de
 If the IMU record is absent, stale, or the history table has not been installed, the program remains running with `WAITING FOR FRESH IMU` instead of consulting physical truth. The first usable observation is followed by `ACQUIRING IMU RATE` until a second distinct IMU sample is available. A disabled IMU stops supplying fresh measurements; the attitude program holds without using the underlying physical angles. The IMU itself still updates once per physics tick from its existing sampled/quantized motion model.
 
 This is a simplified Euler-axis autopilot (not a flight-qualified rigid-body attitude controller); turning and settling require runtime validation, especially near angle wraparound.
+
+### Pilot-only delta-V accumulator
+
+Run `delta_v_schema.sql` in `moonland`, upload `delta_v.php`, `delta_v_status.php`, `instruments/delta_v.php` and updated `execute.php`. **Upload the new PHP files before replacing `execute.php`.** The migration moves the DSKY panels from the Commander pages to the CM/LM **Pilot** pages and installs the small delta-V accumulator on the Pilot pages only. Existing G-meter instruments are left in place.
+
+The accumulator integrates the **signed forward-axis proper acceleration** reported by the existing `g_meter_samples.g_forward` instrument reading:
+`delta_v_mps += g_forward * 9.80665 * 1.0`.
+It is sampled inside the worker's one-second transaction immediately after `moonGMeterTick`. It does **not** add the gravitational acceleration back: the G-meter already subtracts gravity in its proper-acceleration model. It does not use raw simulation positions or orbital velocities.
+
+The current readout measures **signed axial accumulated delta-V**, not inertial three-axis velocity change. It is appropriate as an educational forward-axis burn counter, including negative acceleration, but is not a vector guidance solution when the thrust axis changes. This counter integrates whatever axial non-gravitational acceleration the G meter detects, including any vehicle maneuvers. It is subject to the existing G-meter's sample quantization and accuracy.
+
+RESET ZERO stores `accumulated_mps=0` with the current simulation tick under a database transaction. It does not change engines, spacecraft velocity, IMU alignment, or the G meter. The same sample cannot be integrated twice. Unpowered, missing, or stale G-meter readings cause a HOLD rather than an invented acceleration. The counter remains persistent across page reloads and stops adding while measurements are unavailable. DSKY burn-to-target-delta-V is intentionally **not connected yet**.
+
+The new accumulator is optional: the worker checks for the new table and skips it until SQL is installed. The G-meter savepoint also prevents an optional instrument error from corrupting orbital physics. Runtime validation on GoDaddy remains pending.
