@@ -9,6 +9,10 @@ on:
       - "delta_v*.php"
       - "instruments/delta_v.php"
       - "rtcc_*.php"
+      - "star_*.php"
+      - "instruments/sextant.php"
+      - "instruments/window.php"
+      - "tests/star_alignment_test.php"
       - "tests/rtcc_rendezvous_test.php"
       - "fido_pages/rendezvous.php"
       - ".github/workflows/dsky-php-lint.yml"
@@ -20,8 +24,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check PHP syntax
         run: |
-          for file in dsky_runtime.php dsky_rcs.php dsky_api.php instruments/dsky.php delta_v.php delta_v_status.php instruments/delta_v.php rtcc_rendezvous.php rtcc_solution.php fido_pages/rendezvous.php tests/rtcc_rendezvous_test.php execute.php physics.php; do
+          for file in dsky_runtime.php dsky_rcs.php dsky_api.php instruments/dsky.php delta_v.php delta_v_status.php instruments/delta_v.php rtcc_rendezvous.php rtcc_solution.php star_alignment.php star_catalog.php instruments/sextant.php instruments/window.php tests/star_alignment_test.php fido_pages/rendezvous.php tests/rtcc_rendezvous_test.php execute.php physics.php; do
             php -l "$file" || exit 1
           done
       - name: Rendezvous engine regression tests
         run: php tests/rtcc_rendezvous_test.php
+      - name: Star alignment regression tests
+        run: php tests/star_alignment_test.php
