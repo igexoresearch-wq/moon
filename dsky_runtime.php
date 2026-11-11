@@ -138,6 +138,10 @@ function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $co
  */
 function moonDskyPlatformAlign(mysqli $db,int $craft,int $slot,array $reg,int $nextTick):void {
  try{
+  // A crew optical alignment must never run during another programmed slew.
+  $q=$db->prepare("SELECT 1 FROM dsky_registers r JOIN dsky_programs p ON p.craft_id=r.craft_id AND p.program_no=r.program_no WHERE r.craft_id=? AND r.register_no<>? AND r.state='running' AND p.operation='attitude_target' LIMIT 1");
+  $q->bind_param('ii',$craft,$slot);$q->execute();
+  if($q->get_result()->fetch_row())throw new DomainException('STOP ATTITUDE MANEUVER FIRST');
   $codes=[];
   foreach(['field1','field2','field3'] as $f){
    if($reg[$f]===null)throw new DomainException('THREE SIGHTS REQUIRED');
