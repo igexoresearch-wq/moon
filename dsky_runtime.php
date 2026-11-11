@@ -20,6 +20,16 @@ function moonDskyEngineOff(mysqli $db,int $id):void {
  $q=$db->prepare('UPDATE propulsion_engines SET command_on=0 WHERE id=?');
  $q->bind_param('i',$id);$q->execute();
 }
+function moonDskyEngineIds(array $config):array {
+ $ids=$config['engine_ids']??(isset($config['engine_id'])?[$config['engine_id']]:[]);
+ if(!is_array($ids)||count($ids)<1||count($ids)>5)throw new DomainException('INVALID ENGINE LIST');
+ $ids=array_map(static fn($x)=>(int)$x,$ids);
+ if(count(array_unique($ids))!==count($ids)||min($ids)<=0)throw new DomainException('INVALID ENGINE LIST');
+ return $ids;
+}
+function moonDskyEnginesOff(mysqli $db,array $ids):void {
+ foreach($ids as $id)moonDskyEngineOff($db,(int)$id);
+}
 function moonDskyConfig(array $program):array {
  $config=json_decode((string)$program['config_json'],true,16,JSON_THROW_ON_ERROR);
  if(!is_array($config))throw new RuntimeException('Invalid program configuration');
@@ -91,29 +101,56 @@ function moonDskyBeforePhysics(mysqli $db,int $nextTick):void {
    moonDskyTargetTick($db,$craft,$slot,$r,$config);
    continue;
   }
-  $engine=(int)($config['engine_id']??0);$scale=(float)($config['scale']??0);
+  $scale=(float)($config['scale']??0);
   $seconds=$scale>0 && $r['field1']!==null?(float)$r['field1']/$scale:0.;
   if($seconds<1||$seconds>9999||abs($seconds-round($seconds))>1e-8){
    moonDskyFailure($db,$craft,$slot,'INVALID BURN DURATION');continue;
   }
-  $q=$db->prepare('SELECT vehicle_id,command_on FROM propulsion_engines WHERE id=? FOR UPDATE');
-  $q->bind_param('i',$engine);$q->execute();$e=$q->get_result()->fetch_assoc();
-  // For the first CM programs only the service propulsion engine is permitted.
-  if(!$e||$craft!==3||(int)$e['vehicle_id']!==4){
+  try{$ids=moonDskyEngineIds($config);}catch(DomainException $e){
+   moonDskyFailure($db,$craft,$slot,$e->getMessage());continue;
+  }
+  $vehicle=null;$engines=[];
+  $q=$db->prepare('SELECT vehicle_id,throttleable,minimum_throttle_pct FROM propulsion_engines WHERE id=? FOR UPDATE');
+  foreach($ids as $id){
+   $q->bind_param('i',$id);$q->execute();$engine=$q->get_result()->fetch_assoc();
+   if(!$engine){$vehicle=null;break;}
+   $owner=(int)$engine['vehicle_id'];
+   if($vehicle!==null&&$vehicle!==$owner){$vehicle=null;break;}
+   $vehicle=$owner;$engines[]=$engine;
+  }
+  $permitted=$craft===3?[4,8,9,10]:[6,7];
+  if($vehicle===null||!in_array($vehicle,$permitted,true)){
    moonDskyFailure($db,$craft,$slot,'ENGINE NOT ASSIGNED');continue;
   }
+  // Optional second program field can set throttle percent for a future
+  // SQL-defined LM descent program. Other engines accept only 100%.
+  $throttle=100.;
+  if(isset($config['throttle_field'])){
+   $field=(int)$config['throttle_field'];
+   if($field<2||$field>4||$r['field'.$field]===null){
+    moonDskyFailure($db,$craft,$slot,'THROTTLE NOT ENTERED');continue;
+   }
+   $throttle=(float)$r['field'.$field]/max(1.,(float)($config['throttle_scale']??1));
+  }
+  $validThrottle=$throttle>0&&$throttle<=100.;
+  foreach($engines as $engine){
+   if((int)$engine['throttleable']===0 && abs($throttle-100.)>.00001)$validThrottle=false;
+   if((int)$engine['throttleable']===1&&$throttle<(float)$engine['minimum_throttle_pct'])$validThrottle=false;
+  }
+  if($vehicle===7&&$throttle>63.83&&$throttle<99.999)$validThrottle=false;
+  if(!$validThrottle){moonDskyFailure($db,$craft,$slot,'THROTTLE INVALID');continue;}
   $o=[];$all=$db->query('SELECT id,active,dependent,dependency FROM objects ORDER BY id FOR UPDATE');
   while($row=$all->fetch_assoc())$o[(int)$row['id']]=$row;
-  if(!moonPropulsionAllowed($o,4)){
-   moonDskyFailure($db,$craft,$slot,'STAGE INTERLOCK');moonDskyEngineOff($db,$engine);continue;
+  if(!moonPropulsionAllowed($o,$vehicle)){
+   moonDskyFailure($db,$craft,$slot,'STAGE INTERLOCK');moonDskyEnginesOff($db,$ids);continue;
   }
-  $q=$db->prepare('SELECT remaining_kg FROM propulsion_tanks WHERE vehicle_id=4 FOR UPDATE');
-  $q->execute();$tank=$q->get_result()->fetch_assoc();
+  $q=$db->prepare('SELECT remaining_kg FROM propulsion_tanks WHERE vehicle_id=? FOR UPDATE');
+  $q->bind_param('i',$vehicle);$q->execute();$tank=$q->get_result()->fetch_assoc();
   if(!$tank||(float)$tank['remaining_kg']<=0){
-   moonDskyFailure($db,$craft,$slot,'NO PROPELLANT');moonDskyEngineOff($db,$engine);continue;
+   moonDskyFailure($db,$craft,$slot,'NO PROPELLANT');moonDskyEnginesOff($db,$ids);continue;
   }
-  $q=$db->prepare('UPDATE propulsion_engines SET command_on=1 WHERE id=?');
-  $q->bind_param('i',$engine);$q->execute();
+  $q=$db->prepare('UPDATE propulsion_engines SET command_on=1,throttle_pct=? WHERE id=?');
+  foreach($ids as $id){$q->bind_param('di',$throttle,$id);$q->execute();}
  }
 }
 /** After physics: verify actual ignition and count only seconds of real engine firing. */
@@ -122,17 +159,24 @@ function moonDskyAfterPhysics(mysqli $db):void {
  JOIN dsky_programs p ON p.craft_id=r.craft_id AND p.program_no=r.program_no
  WHERE r.state='running' AND p.operation='burn_seconds' ORDER BY r.craft_id,r.register_no FOR UPDATE")->fetch_all(MYSQLI_ASSOC);
  foreach($rows as $r){
-  $cfg=moonDskyConfig($r);$id=(int)($cfg['engine_id']??0);
-  $q=$db->prepare('SELECT firing,command_on FROM propulsion_engines WHERE id=? FOR UPDATE');
-  $q->bind_param('i',$id);$q->execute();$engine=$q->get_result()->fetch_assoc();
+  $cfg=moonDskyConfig($r);
   $craft=(int)$r['craft_id'];$slot=(int)$r['register_no'];
-  if(!$engine||(int)$engine['firing']!==1){
-   moonDskyFailure($db,$craft,$slot,'ENGINE DID NOT FIRE');moonDskyEngineOff($db,$id);continue;
+  $ids=moonDskyEngineIds($cfg);
+  $q=$db->prepare('SELECT firing FROM propulsion_engines WHERE id=? FOR UPDATE');
+  $fired=0;
+  foreach($ids as $id){
+   $q->bind_param('i',$id);$q->execute();$e=$q->get_result()->fetch_assoc();
+   if($e&&(int)$e['firing']===1)$fired++;
+  }
+  // A failed or shut-down individual engine must not magically continue
+  // consuming fuel. The burn continues if at least one engine really fires.
+  if($fired===0){
+   moonDskyFailure($db,$craft,$slot,'NO ENGINE FIRING');moonDskyEnginesOff($db,$ids);continue;
   }
   $ticks=(int)$r['elapsed_ticks']+1;
   $duration=(int)round((float)$r['field1']/(float)$cfg['scale']);
   if($ticks>=$duration){
-   moonDskyEngineOff($db,$id);
+   moonDskyEnginesOff($db,$ids);
    $q=$db->prepare("UPDATE dsky_registers SET state='complete',elapsed_ticks=?,message='BURN COMPLETE' WHERE craft_id=? AND register_no=?");
   }else{
    $q=$db->prepare('UPDATE dsky_registers SET elapsed_ticks=? WHERE craft_id=? AND register_no=?');
