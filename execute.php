@@ -30,6 +30,7 @@ require_once __DIR__.'/fuel_cells.php';
 require_once __DIR__.'/electrical.php';
 require_once __DIR__.'/rendezvous_radar.php';
 require_once __DIR__.'/g_meter.php';
+require_once __DIR__.'/dsky_runtime.php';
 // Invoke once per minute from cron; runs up to 60 simulated one-second ticks.
 // Prevent concurrent workers via a MySQL advisory lock.
 $lock=$conn->query("SELECT GET_LOCK('moon_v2_execute',0) AS locked")->fetch_assoc();
@@ -40,7 +41,15 @@ try {
  for($tick=0;$tick<60;$tick++){
   $conn->begin_transaction();
   try{
+   // Apply programmed actuator commands before the one-second physics update.
+   // Both actions and motion share the same transaction and roll back together.
+   if(moonDskyInstalled($conn)){
+    $nextClock=$conn->query('SELECT tick FROM sim_clock WHERE id=1 FOR UPDATE')->fetch_assoc();
+    if(!$nextClock)throw new RuntimeException('Simulation clock missing');
+    moonDskyBeforePhysics($conn,(int)$nextClock['tick']+1);
+   }
    moonV2Physics($conn,1.0);
+   if(moonDskyInstalled($conn))moonDskyAfterPhysics($conn);
    $clock=$conn->query('SELECT tick FROM sim_clock WHERE id=1 FOR UPDATE')->fetch_assoc();
    if(!$clock)throw new RuntimeException('Simulation clock missing');
    moonReliabilityTick($conn,(int)$clock['tick']+1);
