@@ -43,9 +43,9 @@ INSERT IGNORE INTO propulsion_tanks(vehicle_id,capacity_kg,remaining_kg,descript
 -- J-2 ~1.03 MN vacuum (~421 s Isp); SPS 91.2 kN (~314 s);
 -- LM APS 15.6 kN (~311 s); LM DPS 43.9 kN (~311 s).
 -- Flow rates computed as thrust / (Isp * 9.80665).
--- Non-throttleable engines must stay at 100%; 10%-100% LM DPS
--- represents an educational simplification of the real discontinuous
--- fixed/full-throttle and variable-throttle operating regimes.
+-- Non-throttleable engines must stay at 100%; LM DPS operates
+-- in approximately 10.6%-63.8% variable thrust or at fixed 100%.
+-- The module enforces the gap between variable thrust and full thrust.
 INSERT IGNORE INTO propulsion_engines
 (id,vehicle_id,engine_name,thrust_n,mass_flow_kg_s,throttleable,minimum_throttle_pct,command_on,throttle_pct,firing,starts_used,maximum_starts)
 VALUES
@@ -62,4 +62,4 @@ VALUES
 (301,8,'S-IVB J-2',1030000,1030000/(421*9.80665),0,100,0,100,0,0,2),
 (401,4,'CSM SPS',91200,91200/(314*9.80665),0,100,0,100,0,0,0),
 (601,6,'LM ASCENT',15570,15570/(311*9.80665),0,100,0,100,0,0,1),
-(701,7,'LM DESCENT',43900,43900/(311*9.80665),1,10,0,100,0,0,0);
+(701,7,'LM DESCENT',43900,43900/(311*9.80665),1,10.6,0,100,0,0,0);
