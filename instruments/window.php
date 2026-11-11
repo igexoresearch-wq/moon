@@ -27,7 +27,7 @@ $windowId='optical-'.bin2hex(random_bytes(6));
 const id=<?=json_encode($windowId)?>;
 const status=document.getElementById(id+'-status');
 const skyStatus=document.getElementById(id+'-sky-status');
-import('./instruments/star_field.js').then(async ({drawStarField})=>{
+import('./instruments/star_field.js?v=3').then(async ({drawStarField})=>{
  const stars=<?=json_encode($windowStars,JSON_THROW_ON_ERROR)?>;
  const sky=document.getElementById(id+'-stars'),ctx=sky.getContext('2d');
  let inFlight=false;
