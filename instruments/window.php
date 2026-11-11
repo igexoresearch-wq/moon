@@ -25,8 +25,50 @@ $windowId='optical-'.bin2hex(random_bytes(6));
 <script type="module">
 const id=<?=json_encode($windowId)?>;
 const status=document.getElementById(id+'-status');
-// Render the shared star code inline: GoDaddy need not serve an ES module.
-<?=preg_replace('/^export /m','',file_get_contents(__DIR__.'/star_field.js'))?>
+// Self-contained sky renderer: no stale external star_field.js can reintroduce labels.
+// Real optical sky: stars only. Reference labels remain on the separate chart.
+const starRadians=Math.PI/180;
+function starBasis(o){
+ const p=Number(o.pitch||0)*starRadians,y=Number(o.yaw||0)*starRadians,r=Number(o.roll||0)*starRadians;
+ const f=[Math.cos(p)*Math.cos(y),Math.cos(p)*Math.sin(y),Math.sin(p)];
+ const right0=[-Math.sin(y),Math.cos(y),0];
+ const up0=[-Math.sin(p)*Math.cos(y),-Math.sin(p)*Math.sin(y),Math.cos(p)];
+ return [f,right0.map((v,i)=>v*Math.cos(r)+up0[i]*Math.sin(r)),
+  up0.map((v,i)=>v*Math.cos(r)-right0[i]*Math.sin(r))];
+}
+function starProject(dir,basis){
+ const dot=b=>b[0]*dir[0]+b[1]*dir[1]+b[2]*dir[2];
+ const f=dot(basis[0]);if(f<=0)return null;
+ const x=Math.atan2(dot(basis[1]),f)/starRadians;
+ const y=Math.atan2(dot(basis[2]),f)/starRadians;
+ return Math.abs(x)<=24.5&&Math.abs(y)<=24.5?{x,y}:null;
+}
+function starOcculted(dir,self,objects){
+ for(const body of objects){
+  if(Number(body.id)!==1&&Number(body.id)!==2)continue;
+  const v=[Number(body.x)-Number(self.x),Number(body.y)-Number(self.y),Number(body.z)-Number(self.z)];
+  const distance=Math.hypot(...v),radius=Number(body.radius_length);
+  if(distance<=radius)return true;
+  const cosine=(v[0]*dir[0]+v[1]*dir[1]+v[2]*dir[2])/distance;
+  if(cosine>Math.sqrt(Math.max(0,1-(radius/distance)**2)))return true;
+ }
+ return false;
+}
+function drawStarField(ctx,canvas,stars,self,objects,{clear=true}={}){
+ if(clear)ctx.clearRect(0,0,canvas.width,canvas.height);
+ const basis=starBasis(self),scale=canvas.width/49;
+ for(const star of stars){
+  const pos=starProject(star.vector,basis);
+  if(!pos||starOcculted(star.vector,self,objects))continue;
+  const x=canvas.width/2+pos.x*scale,y=canvas.height/2-pos.y*scale;
+  const bright=star.group==='TRIAD';
+  const radius=bright?3.5:star.group==='KEY'?2.2:0.5+Math.max(0,5-Number(star.magnitude))*.23;
+  ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);
+  ctx.fillStyle=bright?'#ffdf9f':'#e6efff';ctx.fill();
+ }
+ // Deliberately NO labels, IDs, or constellation guide lines in the live sky.
+}
+
 {
  const stars=<?=json_encode($windowStars,JSON_THROW_ON_ERROR)?>;
  const sky=document.getElementById(id+'-stars'),ctx=sky.getContext('2d');
