@@ -24,7 +24,7 @@ function rtccState(array $o):array {
   'v'=>[(float)$o['delta_x'],(float)$o['delta_y'],(float)$o['delta_z']]
  ];
 }
-function rtccGravity(array $p,array $moon,array $earthMass,float $moonMass,bool $isMoon=false):array {
+function rtccGravity(array $p,array $moon,float $earthMass,float $moonMass,bool $isMoon=false):array {
  $out=[0.,0.,0.];
  $centers=[[[0.,0.,0.],$earthMass]];
  if(!$isMoon)$centers[]=[$moon,$moonMass];
