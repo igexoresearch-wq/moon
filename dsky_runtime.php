@@ -26,7 +26,7 @@ function moonDskyConfig(array $program):array {
  return $config;
 }
 function moonDskyAxisError(float $angle,float $target):float {
- $delta=fmod($target-$angle+540.,360.)-180.;
+ $delta=fmod(fmod($target-$angle+180.,360.)+360.,360.)-180.;
  return $delta;
 }
 function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $config):void {
