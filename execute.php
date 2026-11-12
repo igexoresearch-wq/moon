@@ -42,7 +42,12 @@ moonWorkerDiagnostic('MySQL lock acquired; starting physics');
 try {
  $started=microtime(true);
  for($tick=0;$tick<60;$tick++){
+  $tickStarted=microtime(true);
+  $tickSections=[];
+  $sectionStart=$tickStarted;
   $conn->begin_transaction();
+  $tickSections['begin_transaction_ms']=(int)round((microtime(true)-$sectionStart)*1000);
+  $sectionStart=microtime(true);
   try{
    // Apply programmed actuator commands before the one-second physics update.
    // Both actions and motion share the same transaction and roll back together.
@@ -51,10 +56,16 @@ try {
     if(!$nextClock)throw new RuntimeException('Simulation clock missing');
     moonDskyBeforePhysics($conn,(int)$nextClock['tick']+1);
    }
+   $tickSections['dsky_before_ms']=(int)round((microtime(true)-$sectionStart)*1000);
+   $sectionStart=microtime(true);
    moonV2Physics($conn,1.0);
+   $tickSections['physics_ms']=(int)round((microtime(true)-$sectionStart)*1000);
+   $sectionStart=microtime(true);
    if(moonDskyInstalled($conn))moonDskyAfterPhysics($conn);
    $clock=$conn->query('SELECT tick FROM sim_clock WHERE id=1 FOR UPDATE')->fetch_assoc();
    if(!$clock)throw new RuntimeException('Simulation clock missing');
+   $tickSections['dsky_after_ms']=(int)round((microtime(true)-$sectionStart)*1000);
+   $sectionStart=microtime(true);
    moonReliabilityTick($conn,(int)$clock['tick']+1);
    moonFuelCellsTick($conn,(int)$clock['tick']+1);
    moonImuTick($conn,1.0,(int)$clock['tick']+1);
@@ -62,6 +73,8 @@ try {
    moonRendezvousRadarTick($conn,(int)$clock['tick']+1);
    // A failed optional gauge must never roll back the core flight physics.
    // A savepoint removes partial gauge writes before committing the tick.
+   $tickSections['systems_ms']=(int)round((microtime(true)-$sectionStart)*1000);
+   $sectionStart=microtime(true);
    $conn->query('SAVEPOINT moon_g_meter');
    try{
     moonGMeterTick($conn,(int)$clock['tick']+1);
@@ -81,7 +94,11 @@ try {
    // Cut off P32 SPS burns based on fresh G-meter delta-V samples.
    // This check must run OUTSIDE the optional gauge savepoint: if the gauge
    // fails, the maneuver fails safe with the main engine commanded OFF.
+   $tickSections['g_meter_ms']=(int)round((microtime(true)-$sectionStart)*1000);
+   $sectionStart=microtime(true);
    if(moonDskyInstalled($conn))moonDvAfterSensors($conn,(int)$clock['tick']+1);
+   $tickSections['dsky_cutoff_ms']=(int)round((microtime(true)-$sectionStart)*1000);
+   $sectionStart=microtime(true);
    // The navigation model is optional; never permit it to roll back flight physics.
    if(moonNavigationInstalled($conn)){
     $conn->query('SAVEPOINT moon_navigation');
@@ -98,6 +115,8 @@ try {
     }
    }
    // Independent ground tracking, separately fault-contained from onboard navigation.
+   $tickSections['navigation_ms']=(int)round((microtime(true)-$sectionStart)*1000);
+   $sectionStart=microtime(true);
    if(moonFidoNavigationInstalled($conn)){
     $conn->query('SAVEPOINT moon_fido_navigation');
     try{
@@ -113,10 +132,23 @@ try {
     }
    }
    // Future systems: include another one-tick module HERE.
+   $tickSections['fido_navigation_ms']=(int)round((microtime(true)-$sectionStart)*1000);
+   $sectionStart=microtime(true);
    $conn->query('UPDATE sim_clock SET tick=tick+1,updated_at=NOW() WHERE id=1');
    $conn->commit();
+   $tickSections['commit_ms']=(int)round((microtime(true)-$sectionStart)*1000);
+   $tickElapsedMs=(int)round((microtime(true)-$tickStarted)*1000);
+   if($tickElapsedMs>1500){
+    arsort($tickSections);
+    moonWorkerDiagnostic('SLOW TICK met='.((int)$clock['tick']+1).
+     ' total_ms='.$tickElapsedMs.' sections='.json_encode($tickSections));
+   }
   }catch(Throwable $e){
+   $elapsedMs=(int)round((microtime(true)-$tickStarted)*1000);
    $conn->rollback();
+   moonWorkerDiagnostic('FAILED TICK elapsed_ms='.$elapsedMs.
+    ' last_section_ms='.(int)round((microtime(true)-$sectionStart)*1000).
+    ' completed_sections='.json_encode($tickSections));
    moonWorkerDiagnostic('TICK ERROR '.get_class($e).' at '.basename($e->getFile()).':'.$e->getLine().' — '.$e->getMessage());
    error_log('Moon physics worker failed at sim tick '.((int)($clock['tick']??-1)+1).': '.$e->getMessage());
    throw $e;
