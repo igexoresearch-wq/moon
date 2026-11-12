@@ -1,7 +1,21 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/shared/operator_security.php';
-moonSimRequireOperator();
+// Moon is an intentionally standalone simulator: do not load SWC Back
+// Office 5 authentication, session credentials or its database connection.
+// Retain HTTPS and same-origin checks on control mutations; existing
+// endpoint CSRF checks still apply. This does NOT restrict public access.
+if(PHP_SAPI!=='cli'){
+ moonSimRequireHttps();
+ $method=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'));
+ if(!in_array($method,['GET','HEAD','OPTIONS'],true))
+  moonSimRequireSameOriginMutation();
+ if(!headers_sent()){
+  header('Cache-Control: no-store');
+  header('X-Content-Type-Options: nosniff');
+  header('Referrer-Policy: same-origin');
+ }
+}
 $moonDbFile=__DIR__.'/db.php';
 if(!is_file($moonDbFile))throw new RuntimeException('Moon database config missing: create moon/db.php using db.example.php');
 require_once $moonDbFile;
