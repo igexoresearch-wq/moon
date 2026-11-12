@@ -17,6 +17,10 @@ $maxDv=(string)($_GET['dv']??'1200');
 if(!in_array($maxDv,['250','500','1200','2500'],true))$maxDv='1200';
 $options=$profiles[$profile]+['max_injection_mps'=>(float)$maxDv];
 try{
+ // Fail with a meaningful deployment diagnostic if RTCC files come from
+ // different revisions. This function is defined in rtcc_rendezvous.php.
+ if(!function_exists('rtccAdvanceToMet'))
+  throw new DomainException('RTCC FILE VERSION MISMATCH: update moon/rtcc_rendezvous.php from GitHub');
  // Read a single consistent FIDO ground-estimate epoch, never the objects table.
  $conn->begin_transaction(MYSQLI_TRANS_START_READ_ONLY);
  $snapshot=fidoGroundSnapshot($conn);
