@@ -32,6 +32,7 @@ require_once __DIR__.'/rendezvous_radar.php';
 require_once __DIR__.'/g_meter.php';
 require_once __DIR__.'/delta_v.php';
 require_once __DIR__.'/navigation.php';
+require_once __DIR__.'/fido_navigation.php';
 require_once __DIR__.'/dsky_runtime.php';
 // Invoke once per minute from cron; runs up to 60 simulated one-second ticks.
 // Prevent concurrent workers via a MySQL advisory lock.
@@ -89,6 +90,21 @@ try {
      if(!isset($navigationFailureLogged)){
       error_log('Moon optional navigation failed: '.$navigationError->getMessage());
       $navigationFailureLogged=true;
+     }
+    }
+   }
+   // Independent ground tracking, separately fault-contained from onboard navigation.
+   if(moonFidoNavigationInstalled($conn)){
+    $conn->query('SAVEPOINT moon_fido_navigation');
+    try{
+     moonFidoNavigationTick($conn,(int)$clock['tick']+1);
+     $conn->query('RELEASE SAVEPOINT moon_fido_navigation');
+    }catch(Throwable $groundError){
+     $conn->query('ROLLBACK TO SAVEPOINT moon_fido_navigation');
+     $conn->query('RELEASE SAVEPOINT moon_fido_navigation');
+     if(!isset($groundNavFailureLogged)){
+      error_log('Moon optional FIDO navigation failed: '.$groundError->getMessage());
+      $groundNavFailureLogged=true;
      }
     }
    }
