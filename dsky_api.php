@@ -89,6 +89,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if(!$conn->query("SHOW TABLES LIKE 'dsky_dv_burns'")->fetch_row())
      throw new DomainException('INSTALL P32 SCHEMA FIRST');
     moonDvSchedule($conn,$craft,$num,$d);
+    // Assert the schedule is durable in this transaction before an EXECUTE
+    // response can claim success. The worker must NEVER derive a fresh time.
+    $verify=$conn->prepare('SELECT target_tick FROM dsky_dv_burns WHERE craft_id=? AND register_no=?');
+    $verify->bind_param('ii',$craft,$num);$verify->execute();
+    $scheduled=$verify->get_result()->fetch_assoc();
+    if(!$scheduled||$scheduled['target_tick']===null)
+     throw new DomainException('P32/P33 SCHEDULE COULD NOT BE SAVED');
    }
    $q=$conn->prepare('UPDATE dsky_drafts SET confirmed=1 WHERE craft_id=?');$q->bind_param('i',$craft);$q->execute();
   }elseif($action==='clear'){
