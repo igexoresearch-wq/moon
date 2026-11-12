@@ -6,7 +6,7 @@ function moonWorkerDiagnostic(string $message): void {
  $line=gmdate('Y-m-d H:i:s').' UTC | '.$message."\n";
  if(@file_put_contents($path,$line,FILE_APPEND|LOCK_EX)===false)error_log('Moon worker diagnostic: '.$message);
 }
-moonWorkerDiagnostic('START execute.php; PHP='.PHP_VERSION.'; SAPI='.PHP_SAPI);
+moonWorkerDiagnostic('START execute.php; PID='.getmypid().'; PHP='.PHP_VERSION.'; SAPI='.PHP_SAPI.'; max_execution_time='.ini_get('max_execution_time'));
 register_shutdown_function(static function():void {
  $error=error_get_last();
  if($error!==null&&in_array($error['type'],[E_ERROR,E_PARSE,E_CORE_ERROR,E_COMPILE_ERROR,E_USER_ERROR],true)){
@@ -138,6 +138,14 @@ try {
    $conn->commit();
    $tickSections['commit_ms']=(int)round((microtime(true)-$sectionStart)*1000);
    $tickElapsedMs=(int)round((microtime(true)-$tickStarted)*1000);
+   // Distinguish a killed or blocked cron worker from a single slow
+   // database tick. Low-volume heartbeat every five committed ticks.
+   if(($tick+1)%5===0){
+    moonWorkerDiagnostic('PROGRESS PID='.getmypid().' batch_tick='.($tick+1).
+     '/60 met='.((int)$clock['tick']+1).
+     ' batch_elapsed_s='.round(microtime(true)-$started,2).
+     ' last_tick_ms='.$tickElapsedMs);
+   }
    if($tickElapsedMs>1500){
     arsort($tickSections);
     moonWorkerDiagnostic('SLOW TICK met='.((int)$clock['tick']+1).
