@@ -5,7 +5,7 @@ declare(strict_types=1);
  *
  * Read-only computational model: Earth fixed at origin, Moon propagated under
  * Earth's gravity; CM and LM coast under Earth+Moon gravity using velocity-Verlet.
- * The caller supplies a single snapshot of real simulated object states.
+ * The caller supplies a single coherent FIDO-estimated state snapshot.
  * Maneuvers are ideal instantaneous velocity impulses; neither burn is executed.
  * No SQL writes, ignition commands, AI guesses, or cockpit controls.
  *
@@ -42,7 +42,7 @@ function rtccStep(array $s,array $moonBefore,array $moonAfter,float $earthMass,f
  $a1=rtccGravity($p,$moonAfter,$earthMass,$moonMass,$isMoon);
  return ['p'=>$p,'v'=>rtccVec($s['v'],rtccScale(rtccVec($a0,$a1),.5*$dt))];
 }
-function rtccOutsideBodies(array $p,array $moon,array $earthRadius,float $moonRadius,float $craftRadius=0.):bool {
+function rtccOutsideBodies(array $p,array $moon,float $earthRadius,float $moonRadius,float $craftRadius=0.):bool {
  return rtccNorm($p)>$earthRadius+$craftRadius && rtccNorm(rtccSub($p,$moon))>$moonRadius+$craftRadius;
 }
 /**
@@ -193,11 +193,11 @@ function rtccRendezvousSolve(array $objects,array $options=[]):array {
   'status'=>$solutions?'CANDIDATES':'NO_VALID_SOLUTION',
   'range_m'=>$range,'closing_rate_mps'=>$closing,'relative_speed_mps'=>rtccNorm($relative),
   'method'=>'Numerical two-impulse shooting, velocity-Verlet, Earth + moving Moon gravity',
-  'step_seconds'=>RTCC_STEP_SECONDS,'reference'=>'Instantaneous current simulator state',
+  'step_seconds'=>RTCC_STEP_SECONDS,'reference'=>'FIDO ground estimated state at common navigation epoch',
   'assumptions'=>['Instantaneous engine impulses; no ignition delay, staging or finite-burn gravity loss',
     'No thrust or other active burns during candidate coasts','CM targets LM; LM coasts',
     'No docking or arrival keep-out corridor; intercept is mathematical coincidence',
-    'Earth is fixed; Moon follows the simulator gravity model',
+    'Earth is fixed; Moon follows predicted FIDO gravity model',
     'Flight attitude angles are inertial ideal directions, NOT IMU-referenced commands',
     'No engine fuel/power or guidance feasibility guarantee'],
   'solutions'=>array_slice($solutions,0,5)
