@@ -31,6 +31,7 @@ require_once __DIR__.'/electrical.php';
 require_once __DIR__.'/rendezvous_radar.php';
 require_once __DIR__.'/g_meter.php';
 require_once __DIR__.'/delta_v.php';
+require_once __DIR__.'/navigation.php';
 require_once __DIR__.'/dsky_runtime.php';
 // Invoke once per minute from cron; runs up to 60 simulated one-second ticks.
 // Prevent concurrent workers via a MySQL advisory lock.
@@ -74,6 +75,21 @@ try {
     if(!isset($gMeterFailureLogged)){
      error_log('Moon optional G-meter failed (flight physics continues): '.$gError->getMessage());
      $gMeterFailureLogged=true;
+    }
+   }
+   // The navigation model is optional; never permit it to roll back flight physics.
+   if(moonNavigationInstalled($conn)){
+    $conn->query('SAVEPOINT moon_navigation');
+    try{
+     moonNavigationTick($conn,(int)$clock['tick']+1);
+     $conn->query('RELEASE SAVEPOINT moon_navigation');
+    }catch(Throwable $navigationError){
+     $conn->query('ROLLBACK TO SAVEPOINT moon_navigation');
+     $conn->query('RELEASE SAVEPOINT moon_navigation');
+     if(!isset($navigationFailureLogged)){
+      error_log('Moon optional navigation failed: '.$navigationError->getMessage());
+      $navigationFailureLogged=true;
+     }
     }
    }
    // Future systems: include another one-tick module HERE.
