@@ -36,6 +36,8 @@ try{
  $exhaust=$sps && (float)$sps['mass_flow_kg_s']>0
   ?(float)$sps['thrust_n']/(float)$sps['mass_flow_kg_s']:null;
  $fuel=$tank?(float)$tank['remaining_kg']:null;
+ $rcsRow=$conn->query('SELECT fuel_kg,oxidizer_kg,isp_s,thrust_n FROM rcs WHERE craft_id=4')->fetch_assoc();
+ $rcsTotal=$rcsRow? min((float)$rcsRow['fuel_kg']/.4,(float)$rcsRow['oxidizer_kg']/.6):null;
  foreach($result['solutions'] as &$plan){
   $first=$planningTick+$plan['start_seconds'];
   $second=$planningTick+$plan['intercept_seconds'];
@@ -53,6 +55,15 @@ try{
   ];
   $plan['fuel_budget']=$fuel!==null&&$exhaust!==null
    ?rtccFuelBudget(11660.,$fuel,$exhaust,[$plan['injection_dv_mps'],$plan['matching_dv_mps']]):null;
+  $plan['mixed_budget']=$fuel!==null&&$exhaust!==null&&$rcsTotal!==null&&$rcsRow
+   ?rtccMixedBudget(11660.,$fuel,$rcsTotal,$exhaust,
+    (float)$rcsRow['isp_s']*9.80665,(float)$rcsRow['thrust_n'],
+    [$plan['injection_dv_mps'],$plan['matching_dv_mps']]):null;
+  foreach(['burn1','burn2'] as $i=>$burnKey){
+   $selection=$plan['mixed_budget'][$i]??null;
+   $plan[$burnKey]['program']=$selection['program']??32;
+   $plan[$burnKey]['engine']=$selection['engine']??'SPS';
+  }
   $plan['dsky_compatible']=$plan['burn1']['dv_code']!==null&&$plan['burn2']['dv_code']!==null
     &&$plan['burn1']['pitch_code']!==null&&$plan['burn2']['pitch_code']!==null;
  }
@@ -159,7 +170,7 @@ PREDICTED NOMINAL POSITION MISS <?=rtccFmt($top['miss_m'],2)?> M</p>
 <h2>OPTION <?=($index+1)?> / TWO MANEUVERS</h2>
 <?php foreach(['burn1'=>'FIRST BURN','burn2'=>'SECOND BURN'] as $key=>$label):
  $burn=$plan[$key];?>
-<h2><?=$label?> / MET <?=htmlspecialchars($burn['met'])?></h2>
+<h2><?=$label?> / MET <?=htmlspecialchars($burn['met'])?> / PROGRAM <?=$burn['program']?> (<?=$burn['engine']?>)</h2>
 <table><thead><tr><th>REGISTER</th><th>VALUE TO ENTER</th><th>MEANING</th></tr></thead><tbody>
 <tr><td>R1</td><td><?=htmlspecialchars($burn['hhmm'])?></td><td>MISSION HHMM (100-HOUR DIGIT INFERRED)</td></tr>
 <tr><td>R2</td><td><?=$burn['dv_code']===null?'NOT ENCODABLE':sprintf('%04d',$burn['dv_code'])?></td><td>DELTA-V <?=rtccFmt($burn['dv_mps'],2)?> M/S; ENTRY 0.1 M/S</td></tr>
@@ -167,21 +178,31 @@ PREDICTED NOMINAL POSITION MISS <?=rtccFmt($top['miss_m'],2)?> M</p>
 <tr><td>R4</td><td><?=$burn['yaw_code']===null?'NOT ENCODABLE':sprintf('%04d',$burn['yaw_code'])?></td><td>INERTIAL YAW / TENTHS DEG</td></tr>
 </tbody></table>
 <?php endforeach;?>
+<?php if($plan['mixed_budget']!==null):
+ $firstMixed=$plan['mixed_budget'][0];$secondMixed=$plan['mixed_budget'][1]; ?>
+<p>RECOMMENDED PROPULSION: FIRST <?=$firstMixed['engine']?> (P<?=$firstMixed['program']?>) /
+SECOND <?=$secondMixed['engine']?> (P<?=$secondMixed['program']?>).</p>
+<p>MIXED FUEL ESTIMATE: FIRST <?=rtccFmt($firstMixed['fuel_kg'],2)?> KG <?=$firstMixed['engine']?> /
+SECOND <?=rtccFmt($secondMixed['fuel_kg'],2)?> KG <?=$secondMixed['engine']?> /
+REMAINING SPS <?=rtccFmt($secondMixed['remaining_sps_kg'],1)?> KG /
+REMAINING RCS <?=rtccFmt($secondMixed['remaining_rcs_kg'],1)?> KG.</p>
+<p><?= $firstMixed['available']&&$secondMixed['available']?'NOMINAL PROPELLANT BUDGET AVAILABLE':'WARNING: NOMINAL PROPELLANT INSUFFICIENT' ?></p>
+<?php endif;?>
 <?php if($plan['fuel_budget']!==null):
  $firstFuel=$plan['fuel_budget'][0];$secondFuel=$plan['fuel_budget'][1]; ?>
-<p>ESTIMATED SPS FUEL: FIRST <?=rtccFmt($firstFuel['fuel_kg'],1)?> KG /
+<p>SPS-ONLY ALTERNATIVE ESTIMATE: FIRST <?=rtccFmt($firstFuel['fuel_kg'],1)?> KG /
 SECOND <?=rtccFmt($secondFuel['fuel_kg'],1)?> KG /
 TOTAL <?=rtccFmt($firstFuel['fuel_kg']+$secondFuel['fuel_kg'],1)?> KG /
 AFTER BOTH <?=rtccFmt($secondFuel['remaining_kg'],1)?> KG</p>
 <p><?= $firstFuel['available']&&$secondFuel['available']?'NOMINAL PROPELLANT BUDGET AVAILABLE':'WARNING: NOMINAL PROPELLANT INSUFFICIENT' ?></p>
 <?php else: ?><p>SPS FUEL ESTIMATE UNAVAILABLE: INSTALL PROPULSION TABLES</p><?php endif;?>
-<p class="note"><?= $plan['dsky_compatible']?'P32 ENTRY CODES AVAILABLE':'ONE OR MORE BURNS CANNOT BE ENTERED WITH FOUR-DIGIT P32; REPLAN OR CHANGE PROGRAM RANGE.' ?>
-Each burn must be entered and EXECUTED separately; do not queue the second before the first completes. Recalculate after the first physical burn.</p>
+<p class="note"><?= $plan['dsky_compatible']?'P32 / P33 ENTRY CODES AVAILABLE':'ONE OR MORE BURNS CANNOT BE ENTERED WITH FOUR-DIGIT P32; REPLAN OR CHANGE PROGRAM RANGE.' ?>
+Enter the listed P32 or P33 program for each burn. Each burn must be entered and EXECUTED separately; do not queue the second before the first completes. Recalculate after the first physical burn.</p>
 </div>
 <?php endforeach;?>
 <?php endif;?>
 <div class="panel"><h2>FLIGHT DYNAMICS LIMITATIONS</h2>
-<p class="note">ADVISORY SOLUTION ONLY. DO NOT ENTER AS A DSKY BURN PROGRAM YET.
+<p class="note">ADVISORY OPTIMIZATION ONLY. P32/P33 ACCEPT THE ENCODED INPUTS AND EXECUTE SIMULATED BURNS, BUT IDEAL IMPULSIVE TRAJECTORY CANDIDATES ARE NOT FINITE-BURN-VALIDATED.
 These are instantaneous inertial impulses, not executable finite engine burns.
 Attitudes are NOT IMU-referenced; roll is unspecified. No hardware, fuel,
 ignition, separation, docking, or final approach clearance has been certified.</p>
