@@ -1,7 +1,7 @@
 <?php
-$target=$objects[3]??null;
+$target=$estimates[3]??null;
 if(!$target){echo '<p>CSM TRAJECTORY UNAVAILABLE</p>';return;}
-$body=fidoBody($target,$objects[1],$objects[2]);$orb=fidoOrbit($target,$body);
+$body=fidoBody($target,$estimates[1],$estimates[2]);$orb=fidoOrbit($target,$body);
 ?>
 <h2>001 / FLIGHT TRAJECTORY</h2>
 <div class="fd-grid">
