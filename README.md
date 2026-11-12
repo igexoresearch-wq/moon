@@ -199,3 +199,11 @@ UPDATE dsky_dv_burns SET status='ABORTED'
 COMMIT;
 ```
 This directly changes engine commands and register state but never changes spacecraft position, velocity or mission clock. Coordinate database writes with the tick worker's transaction; confirm the engine is off afterward. Preserve incident data before clearing registers when possible.
+
+## Standalone Moon access (November 2026)
+
+Moon deliberately **no longer uses Back Office 5 authentication**. `common.php` does not call `moonSimRequireOperator()`, so ordinary Moon page and instrument requests no longer check SWC user sessions or load the SWC auth database. It still opens one Moon `mysqli` connection per PHP request with credentials from `moon/db.php`. The command-line simulation worker does not perform SWC authentication. HTTPS, same-origin checks on control requests, and individual endpoint CSRF checks remain in place, but **these are not authentication**.
+
+**Security notice:** Anyone who can reach the deployed Moon URL can now view its pages and potentially use its controls. Restrict the directory at the hosting/reverse-proxy level or use hosting-level password protection if public access is undesirable. This change does not establish a new login system. Any connection-limit problem can persist if `moon/db.php` uses the same MySQL username as the SWC application, because the MySQL account quota is per user, not per site.
+
+Deploy the modified `common.php` to `/moon/`. No schema changes or mission reset are needed. Source regression: `php tests/standalone_auth_test.php`.
