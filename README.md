@@ -207,3 +207,7 @@ Moon deliberately **no longer uses Back Office 5 authentication**. `common.php` 
 **Security notice:** Anyone who can reach the deployed Moon URL can now view its pages and potentially use its controls. Restrict the directory at the hosting/reverse-proxy level or use hosting-level password protection if public access is undesirable. This change does not establish a new login system. Any connection-limit problem can persist if `moon/db.php` uses the same MySQL username as the SWC application, because the MySQL account quota is per user, not per site.
 
 Deploy the modified `common.php` to `/moon/`. No schema changes or mission reset are needed. Source regression: `php tests/standalone_auth_test.php`.
+
+## CSM SPS fuel gauge
+
+Deploy `csm_fuel_status.php` to the root `/moon/` folder and `instruments/csm_fuel.php` to `/moon/instruments/`. Apply `csm_fuel_gauge_schema.sql` once to add it to **CM Commander** and **CM Pilot**; reposition through the existing editor if needed. This is a read-only, 5-second-polled gauge of the Service Module SPS tank (`propulsion_tanks.vehicle_id=4`), displaying remaining combined fuel+oxidizer in kg and percent of loaded capacity. The Command Module has no separate SPS fuel tank. **RCS propellant is not included**. No physics, existing tanks, or current mission values are altered. Source regression: `php tests/csm_fuel_gauge_test.php`.
