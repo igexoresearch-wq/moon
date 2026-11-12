@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/dsky_rcs_translate.php';
 /**
  * P32: absolute mission-clock HHMM, delta-V magnitude in tenths of m/s,
  * IMU-referenced inertial pitch/yaw in tenths of a degree.
@@ -17,7 +18,7 @@ function moonDvMissionTick(int $nowTick,int $hhmm):int {
  return $target;
 }
 function moonDvSchedule(mysqli $db,int $craft,int $slot,array $draft):void {
- if($craft!==3)throw new DomainException('P32 CSM ONLY');
+ if($craft!==3)throw new DomainException('CM MANEUVER ONLY');
  foreach(['field1','field2','field3','field4'] as $f)if($draft[$f]===null)throw new DomainException('FOUR VALUES REQUIRED');
  $clock=$db->query('SELECT tick FROM sim_clock WHERE id=1 FOR UPDATE')->fetch_assoc();
  if(!$clock)throw new DomainException('MISSION CLOCK UNAVAILABLE');
@@ -32,19 +33,25 @@ function moonDvSchedule(mysqli $db,int $craft,int $slot,array $draft):void {
  $q->bind_param('iii',$craft,$slot,$target);$q->execute();
 }
 function moonDvFail(mysqli $db,int $craft,int $slot,string $reason):void {
- moonDskyEngineOff($db,401);
+ $q=$db->prepare("SELECT program_no FROM dsky_registers WHERE craft_id=? AND register_no=?");
+ $q->bind_param('ii',$craft,$slot);$q->execute();$program=$q->get_result()->fetch_assoc();
+ if($program && (int)$program['program_no']===32)moonDskyEngineOff($db,401);
  moonDskyFailure($db,$craft,$slot,$reason);
  $q=$db->prepare("UPDATE dsky_dv_burns SET status='FAILED' WHERE craft_id=? AND register_no=?");
  $q->bind_param('ii',$craft,$slot);$q->execute();
 }
-function moonDvBeforePhysics(mysqli $db,int $craft,int $slot,array $r,int $tick):void {
+function moonDvBeforePhysics(mysqli $db,int $craft,int $slot,array $r,int $tick,bool $rcsMode=false):void {
  $q=$db->prepare('SELECT * FROM dsky_dv_burns WHERE craft_id=? AND register_no=? FOR UPDATE');
  $q->bind_param('ii',$craft,$slot);$q->execute();$m=$q->get_result()->fetch_assoc();
  if(!$m){moonDvFail($db,$craft,$slot,'BURN SCHEDULE MISSING');return;}
  $target=(int)$m['target_tick'];
  if($m['ignited_tick']!==null){
-  if((int)$m['ignited_tick']>$tick || $tick-$target>600){
+  if((int)$m['ignited_tick']>$tick || $tick-$target>2400){
    moonDvFail($db,$craft,$slot,'BURN TIMEOUT');return;
+  }
+  if($rcsMode){
+   if(!moonDvRcsTranslate($db))moonDvFail($db,$craft,$slot,'RCS TRANSLATION UNAVAILABLE');
+   return;
   }
   $q=$db->prepare('SELECT command_on FROM propulsion_engines WHERE id=401 FOR UPDATE');
   $q->execute();$engine=$q->get_result()->fetch_assoc();
@@ -64,6 +71,13 @@ function moonDvBeforePhysics(mysqli $db,int $craft,int $slot,array $r,int $tick)
   return;
  }
  if(!$aligned){moonDvFail($db,$craft,$slot,'ATTITUDE NOT READY AT TIG');return;}
+ if($rcsMode){
+  if(!moonDvRcsTranslate($db)){moonDvFail($db,$craft,$slot,'RCS TRANSLATION UNAVAILABLE');return;}
+  $q=$db->prepare("UPDATE dsky_dv_burns SET ignited_tick=?,status='BURNING' WHERE craft_id=? AND register_no=?");
+  $q->bind_param('iii',$tick,$craft,$slot);$q->execute();
+  moonDskyImuHold($db,$craft,$slot,'RCS IGNITION / DELTA-V');
+  return;
+ }
  // The service module must be attached and no third stage may remain.
  $assembly=[];$rows=$db->query('SELECT id,active,dependent,dependency FROM objects ORDER BY id FOR UPDATE');
  while($a=$rows->fetch_assoc())$assembly[(int)$a['id']]=$a;
@@ -85,16 +99,18 @@ function moonDvBeforePhysics(mysqli $db,int $craft,int $slot,array $r,int $tick)
 /** Called AFTER moonGMeterTick so actual sampled proper acceleration is available. */
 function moonDvAfterSensors(mysqli $db,int $tick):void {
  if(!$db->query("SHOW TABLES LIKE 'dsky_dv_burns'")->fetch_row())return;
- $q=$db->query("SELECT r.craft_id,r.register_no,r.field2,r.field3,r.field4,m.achieved_mps,m.last_sample_tick,m.ignited_tick
+ $q=$db->query("SELECT r.craft_id,r.register_no,r.program_no,r.field2,r.field3,r.field4,m.achieved_mps,m.last_sample_tick,m.ignited_tick
  FROM dsky_registers r JOIN dsky_dv_burns m
  ON m.craft_id=r.craft_id AND m.register_no=r.register_no
  WHERE r.state='running' AND m.status='BURNING' FOR UPDATE");
  $burns=$q->fetch_all(MYSQLI_ASSOC);
  foreach($burns as $r){
   $craft=(int)$r['craft_id'];$slot=(int)$r['register_no'];
-  $q=$db->prepare('SELECT firing FROM propulsion_engines WHERE id=401 FOR UPDATE');
-  $q->execute();$engine=$q->get_result()->fetch_assoc();
-  if(!$engine||(int)$engine['firing']!==1){moonDvFail($db,$craft,$slot,'SPS NOT FIRING');continue;}
+  if((int)$r['program_no']===32){
+   $q=$db->prepare('SELECT firing FROM propulsion_engines WHERE id=401 FOR UPDATE');
+   $q->execute();$engine=$q->get_result()->fetch_assoc();
+   if(!$engine||(int)$engine['firing']!==1){moonDvFail($db,$craft,$slot,'SPS NOT FIRING');continue;}
+  }
   $q=$db->prepare('SELECT sample_tick,valid,acceleration_x_mps2,acceleration_y_mps2,acceleration_z_mps2 FROM g_meter_samples WHERE craft_id=?');
   $q->bind_param('i',$craft);$q->execute();$g=$q->get_result()->fetch_assoc();
   if(!$g||(int)$g['valid']!==1||(int)$g['sample_tick']!==$tick
@@ -110,7 +126,7 @@ function moonDvAfterSensors(mysqli $db,int $tick):void {
   $achieved=(float)$r['achieved_mps']+$measured;
   $desired=(float)$r['field2']/10.;
   if($achieved>=$desired){
-   moonDskyEngineOff($db,401);
+   if((int)$r['program_no']===32)moonDskyEngineOff($db,401);
    $q=$db->prepare("UPDATE dsky_registers SET state='complete',message=? WHERE craft_id=? AND register_no=?");
    $message=sprintf('DV %.2f / TARGET %.1f MPS',$achieved,$desired);
    $q->bind_param('sii',$message,$craft,$slot);$q->execute();
