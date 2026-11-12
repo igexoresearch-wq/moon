@@ -26,3 +26,7 @@ checkManeuver($mix[0]['available']&&$mix[1]['available'],'Nominal mixed budget a
 $noRcs=rtccMixedBudget(11660.,18500.,0.,314*9.80665,289*9.80665,445.,[2.]);
 checkManeuver($noRcs[0]['program']===32,'No RCS fuel falls back to SPS');
 echo "DSKY P32/P33 mission time, encoding and mixed propulsion tests passed\\n";
+
+$runtime=file_get_contents(dirname(__DIR__).'/dsky_runtime.php');
+checkManeuver(str_contains($runtime,"'timed_delta_v'") && str_contains($runtime,"'timed_rcs_dv'"),'Worker must accept P32/P33');
+checkManeuver(str_contains($runtime,'moonDvBeforePhysics('),'Worker must dispatch timed burns');
