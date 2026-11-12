@@ -1,5 +1,5 @@
 <?php
-$cm=$objects[3]??null;$lm=$objects[6]??null;
+$cm=$estimates[3]??null;$lm=$estimates[6]??null;
 ?>
 <h2>004 / RENDEZVOUS FLIGHT DATA</h2>
 <?php if(!$cm||!$lm||(int)$cm['active']!==1||(int)$lm['active']!==1):?>
@@ -14,7 +14,7 @@ $lateral=$rangeRate===null?null:sqrt(max(0.,$relSpeed*$relSpeed-$rangeRate*$rang
 ?>
 <div class="fd-grid">
 <section><h3>RELATIVE MOTION</h3><?php fidoRows(['RANGE KM'=>fidoN($range/1000,4),'RANGE RATE M/S'=>fidoN($rangeRate===null?null:$rangeRate,2),'REL SPEED M/S'=>fidoN($relSpeed,2),'TRANSVERSE SPEED M/S'=>fidoN($lateral===null?null:$lateral,2)]);?></section>
-<section><h3>RENDEZVOUS CONDITIONS</h3><?php fidoRows(['CLOSURE'=>$rangeRate===null?'---':($rangeRate>0?'CLOSING':($rangeRate<0?'OPENING':'NO RANGE CHANGE')),'PRIMARY VEHICLE'=>'CSM','SECONDARY VEHICLE'=>'LM','INTERCEPT SOLUTION'=>'RTCC SOLVER READY']);?></section>
+<section><h3>RENDEZVOUS CONDITIONS</h3><?php fidoRows(['CLOSURE'=>$rangeRate===null?'---':($rangeRate>0?'CLOSING':($rangeRate<0?'OPENING':'NO RANGE CHANGE')),'PRIMARY VEHICLE'=>'CSM','SECONDARY VEHICLE'=>'LM','INTERCEPT SOLUTION'=>'GROUND RTCC TARGETING']);?></section>
 </div>
-<div class="fd-note">RTCC NUMERICAL RENDEZVOUS TARGETING IS AVAILABLE AS AN ADVISORY SOLUTION. <a href="rtcc_solution.php" target="_blank" rel="noopener" style="color:#b4e4cf">CALCULATE RENDEZVOUS SOLUTION</a>. DOES NOT COMMAND ENGINES.</div>
+<div class="fd-note">RTCC TARGETING USES ONLY THE FIDO ESTIMATED STATE. <a href="rtcc_solution.php" target="_blank" rel="noopener" style="color:#b4e4cf">CALCULATE RENDEZVOUS SOLUTION</a>. DOES NOT COMMAND ENGINES.</div>
 <?php endif;?>
