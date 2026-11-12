@@ -78,6 +78,10 @@ try {
      $gMeterFailureLogged=true;
     }
    }
+   // Cut off P32 SPS burns based on fresh G-meter delta-V samples.
+   // This check must run OUTSIDE the optional gauge savepoint: if the gauge
+   // fails, the maneuver fails safe with the main engine commanded OFF.
+   if(moonDskyInstalled($conn))moonDvAfterSensors($conn,(int)$clock['tick']+1);
    // The navigation model is optional; never permit it to roll back flight physics.
    if(moonNavigationInstalled($conn)){
     $conn->query('SAVEPOINT moon_navigation');
