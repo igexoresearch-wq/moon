@@ -49,6 +49,11 @@ function moonDvBeforePhysics(mysqli $db,int $craft,int $slot,array $r,int $tick,
   if((int)$m['ignited_tick']>$tick || $tick-$target>2400){
    moonDvFail($db,$craft,$slot,'BURN TIMEOUT');return;
   }
+  // Continuous IMU-referenced attitude hold throughout the burn, using
+  // real RCS jets. Unlike the pre-ignition guard, temporary trim
+  // corrections do not cancel an already firing maneuver.
+  $steer=['field1'=>$r['field3'],'field2'=>$r['field4']];
+  moonDskyTargetTick($db,$craft,$slot,$steer,['axis'=>'pitch_yaw','scale'=>10],$tick,false);
   if($rcsMode){
    if(!moonDvRcsTranslate($db))moonDvFail($db,$craft,$slot,'RCS TRANSLATION UNAVAILABLE');
    return;
@@ -59,9 +64,9 @@ function moonDvBeforePhysics(mysqli $db,int $craft,int $slot,array $r,int $tick,
   return;
  }
  if($tick>$target){moonDvFail($db,$craft,$slot,'MISSED IGNITION TIME');return;}
- // Reuse IMU-only RCS steering (no direct reads of true attitude).
- // Existing controller does not change the DSKY register to complete
- // when markComplete=false; P32 owns that register through burn cutoff.
+ // Reuse IMU-only RCS steering during the pre-burn slew and wait.
+ // A maneuver is ready when pitch/yaw are within ±0.3 deg and
+ // the measured rates have settled within the controller's rate limit.
  $steer=['field1'=>$r['field3'],'field2'=>$r['field4']];
  $aligned=moonDskyTargetTick($db,$craft,$slot,$steer,['axis'=>'pitch_yaw','scale'=>10],$tick,false);
  if($tick<$target){
