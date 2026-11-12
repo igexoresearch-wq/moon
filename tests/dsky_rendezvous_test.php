@@ -30,3 +30,12 @@ echo "DSKY P32/P33 mission time, encoding and mixed propulsion tests passed\\n";
 $runtime=file_get_contents(dirname(__DIR__).'/dsky_runtime.php');
 checkManeuver(str_contains($runtime,"'timed_delta_v'") && str_contains($runtime,"'timed_rcs_dv'"),'Worker must accept P32/P33');
 checkManeuver(str_contains($runtime,'moonDvBeforePhysics('),'Worker must dispatch timed burns');
+
+$api=file_get_contents(dirname(__DIR__).'/dsky_api.php');
+checkManeuver(str_contains($api,'moonDvSchedule($conn,$craft,$num,$d)'),
+ 'DSKY execute must create timed schedule');
+checkManeuver(str_contains($api,'SELECT target_tick FROM dsky_dv_burns'),
+ 'DSKY execute must verify the timed schedule');
+$controller=file_get_contents(dirname(__DIR__).'/dsky_rendezvous.php');
+checkManeuver(str_contains($controller,'SCHEDULE ABSENT - UPDATE DSKY API'),
+ 'A missing schedule must fail closed with actionable message');
