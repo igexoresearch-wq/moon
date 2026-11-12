@@ -2,16 +2,17 @@
 declare(strict_types=1);
 require_once __DIR__.'/common.php';
 require_once __DIR__.'/rtcc_rendezvous.php';
+require_once __DIR__.'/fido_ground.php';
 header('Cache-Control: no-store');
 $wantJson=($_GET['format']??'')==='json';
 try{
- // Single consistent read-only snapshot. No changes to physics, tanks, or commands.
+ // Read a single consistent FIDO ground-estimate epoch, never the objects table.
  $conn->begin_transaction(MYSQLI_TRANS_START_READ_ONLY);
- $rows=$conn->query('SELECT id,name,active,dependent,dependency,land,dry_mass,radius_length,x,y,z,delta_x,delta_y,delta_z FROM objects WHERE id IN (1,2,3,6)')->fetch_all(MYSQLI_ASSOC);
- $objects=[];foreach($rows as $row)$objects[(int)$row['id']]=$row;
- $clock=$conn->query('SELECT tick FROM sim_clock WHERE id=1')->fetch_assoc();
+ $snapshot=fidoGroundSnapshot($conn);
+ $estimates=$snapshot['objects'];
+ $epoch=$snapshot['tick'];
  $conn->commit();
- $result=rtccRendezvousSolve($objects);
+ $result=rtccRendezvousSolve($estimates);
  if($wantJson){
   header('Content-Type: application/json; charset=utf-8');
   echo json_encode($result,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT);exit;
@@ -46,7 +47,7 @@ td,th{padding:10px 6px;border-bottom:1px solid #3e5558;text-align:right}td:first
 <p>RANGE <b><?=rtccFmt($result['range_m']/1000,3)?> KM</b> /
 CLOSING RATE <b><?=rtccFmt((float)$result['closing_rate_mps'])?> M/S</b> /
 RELATIVE SPEED <b><?=rtccFmt($result['relative_speed_mps'])?> M/S</b></p>
-<p>STATUS <b><?=htmlspecialchars($result['status'])?></b> / 2-IMPULSE NUMERICAL TARGETING</p>
+<p>STATUS <b><?=htmlspecialchars($result['status'])?></b> / 2-IMPULSE NUMERICAL TARGETING / ESTIMATE TICK <b><?=(int)$epoch?></b></p>
 </div>
 <?php if(!$result['solutions']): ?>
 <p class="note">No safe candidate within the current search limits. No burn instructions issued. This does not prove rendezvous is impossible.</p>
@@ -86,6 +87,6 @@ PREDICTED NOMINAL POSITION MISS <?=rtccFmt($top['miss_m'],2)?> M</p>
 These are instantaneous inertial impulses, not executable finite engine burns.
 Attitudes are NOT IMU-referenced; roll is unspecified. No hardware, fuel,
 ignition, separation, docking, or final approach clearance has been certified.</p>
-<p>TRACKING INPUT: TRUE SIMULATED CM/LM STATE. CALCULATION MODEL: EARTH + MOVING MOON GRAVITY.
+<p>TRACKING INPUT: INDEPENDENT FIDO GROUND-ESTIMATED CM/LM STATE. CALCULATION MODEL: EARTH + MOVING MOON GRAVITY.
 TARGET LM IS ASSUMED TO COAST WITHOUT MANEUVERS DURING THE PLAN.</p></div>
 <?php endif;?></body></html>
