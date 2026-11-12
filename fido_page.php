@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__.'/common.php';
 require_once __DIR__.'/fido_pages/_shared.php';
+require_once __DIR__.'/fido_ground.php';
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
 $key=(string)($_GET['display']??'summary');
@@ -11,9 +12,18 @@ $q->bind_param('s',$key);$q->execute();$entry=$q->get_result()->fetch_assoc();
 if(!$entry){http_response_code(404);exit('Display unavailable');}
 $file=(string)$entry['page_file'];
 if(!preg_match('/\A[a-z][a-z0-9_]*\.php\z/i',$file)||str_starts_with($file,'_')||!is_file(__DIR__.'/fido_pages/'.$file)){http_response_code(404);exit('Display module unavailable');}
-$objects=[];
-$result=$conn->query('SELECT id,name,active,dry_mass,radius_length,x,y,z,delta_x,delta_y,delta_z FROM objects WHERE id IN (1,2,3,6)');
-while($row=$result->fetch_assoc())$objects[(int)$row['id']]=$row;
+try {
+ $conn->begin_transaction(MYSQLI_TRANS_START_READ_ONLY);
+ $ground=fidoGroundSnapshot($conn);
+ $estimates=$ground['objects'];$groundTick=$ground['tick'];
+ $conn->commit();
+ $groundError=null;
+} catch(Throwable $exception) {
+ try{$conn->rollback();}catch(Throwable $ignored){}
+ error_log('FIDO estimated state: '.$exception->getMessage());
+ $groundError=$exception instanceof DomainException?$exception->getMessage():'GROUND NAVIGATION DATA UNAVAILABLE';
+ $estimates=[];
+}
 ?><!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="5">
 <style>
@@ -30,7 +40,7 @@ section{padding:12px 0;background:transparent;border:0;border-bottom:1px solid #
 .fd-table th:first-child,.fd-table td:first-child{text-align:left;width:22%}
 .fd-table th{color:#9cb9c6}p{line-height:1.5}
 </style></head><body>
-<?php if(!isset($objects[1],$objects[2])): ?>
-<h2>RTCC / DATA UNAVAILABLE</h2><p>EARTH OR MOON RECORD MISSING</p>
+<?php if($groundError!==null): ?>
+<h2>RTCC / GROUND ESTIMATE UNAVAILABLE</h2><p><?=htmlspecialchars($groundError,ENT_QUOTES)?></p>
 <?php else: include __DIR__.'/fido_pages/'.$file; endif;?>
 </body></html>
