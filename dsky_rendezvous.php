@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/dsky_rcs_translate.php';
+require_once __DIR__.'/dsky_dv_safety.php';
 /**
  * P32: absolute mission-clock HHMM, delta-V magnitude in tenths of m/s,
  * IMU-referenced inertial pitch/yaw in tenths of a degree.
@@ -138,10 +139,40 @@ function moonDvAfterSensors(mysqli $db,int $tick):void {
   if(!is_finite($measured)||$measured<0.){moonDvFail($db,$craft,$slot,'NEGATIVE THRUST READING');continue;}
   $achieved=(float)$r['achieved_mps']+$measured;
   $desired=(float)$r['field2']/10.;
-  if($achieved>=$desired){
+  $ticks=null;
+  $modelDv=null;
+  if((int)$r['program_no']===32){
+   // Independent bound based on real physical engine thrust and current
+   // attached stack mass. Never allow a broken G-meter/projection to
+   // keep the SPS firing indefinitely.
+   try{
+    $model=moonDvSpsMassModel($db);
+    $acceleration=moonDvSpsExpectedAcceleration($model['thrust_n'],$model['mass_kg']);
+    $count=$db->prepare('SELECT elapsed_ticks FROM dsky_registers WHERE craft_id=? AND register_no=? FOR UPDATE');
+    $count->bind_param('ii',$craft,$slot);$count->execute();
+    $record=$count->get_result()->fetch_assoc();
+    $ticks=(int)($record['elapsed_ticks']??0)+1;
+    $modelDv=$ticks*$acceleration;
+    if(!moonDvSpsSamplePlausible($measured,$acceleration)){
+     moonDvFail($db,$craft,$slot,'SPS DELTA-V SENSOR DISAGREES');continue;
+    }
+    if(moonDvSpsWatchdogExceeded($desired,$model['thrust_n'],$model['mass_kg'],$ticks)){
+     moonDvFail($db,$craft,$slot,'SPS DELTA-V WATCHDOG CUTOFF');continue;
+    }
+    $count=$db->prepare('UPDATE dsky_registers SET elapsed_ticks=? WHERE craft_id=? AND register_no=?');
+    $count->bind_param('iii',$ticks,$craft,$slot);$count->execute();
+   }catch(Throwable $safetyError){
+    error_log('Moon SPS watchdog: '.$safetyError->getMessage());
+    moonDvFail($db,$craft,$slot,'SPS SAFETY MODEL UNAVAILABLE');continue;
+   }
+  }
+  // Normal cutoff uses the G-meter. The independently estimated impulse
+  // prevents overburn if sensor integration lags; display records the
+  // measured value, not the model estimate.
+  if($achieved>=$desired || ($modelDv!==null&&$modelDv>=$desired)){
    if((int)$r['program_no']===32)moonDskyEngineOff($db,401);
    $q=$db->prepare("UPDATE dsky_registers SET state='complete',message=? WHERE craft_id=? AND register_no=?");
-   $message=sprintf('DV %.2f / TARGET %.1f MPS',$achieved,$desired);
+   $message=sprintf('DV %.2f / TARGET %.1f MPS%s',$achieved,$desired,$modelDv!==null&&$modelDv>=$desired&&$achieved<$desired?' / MODEL LIMIT':'');
    $q->bind_param('sii',$message,$craft,$slot);$q->execute();
    $status='COMPLETE';
   }else{
