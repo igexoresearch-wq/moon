@@ -94,7 +94,7 @@ $dcId='dsky-'.bin2hex(random_bytes(5));
    const value=d?.['field'+i];
    const row=el.querySelector('[data-field="'+i+'"]');
    row.querySelector('button').disabled=!label;
-   const scale=Number(p?.config_json?JSON.parse(p.config_json).scale:1)||1;
+   const scale=p?.operation==='timed_delta_v' && i===1 ? 1 : (Number(p?.config_json?JSON.parse(p.config_json).scale:1)||1);
    const raw=value===null||value===undefined?null:String(Math.round(Number(value))).padStart(4,'0');
    row.querySelector('[data-value]').textContent=raw===null?'----':scale===10?raw.slice(0,-1)+'.'+raw.slice(-1):raw;
    row.querySelector('[data-label]').textContent=label||'';
