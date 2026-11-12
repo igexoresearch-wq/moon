@@ -54,6 +54,14 @@ function moonDvBeforePhysics(mysqli $db,int $craft,int $slot,array $r,int $tick,
   // corrections do not cancel an already firing maneuver.
   $steer=['field1'=>$r['field3'],'field2'=>$r['field4']];
   moonDskyTargetTick($db,$craft,$slot,$steer,['axis'=>'pitch_yaw','scale'=>10],$tick,false);
+  // If the steering controller has marked a hard failure (e.g. RCS
+  // unavailable), do not leave the SPS burning without guidance.
+  $stateQuery=$db->prepare('SELECT state,message FROM dsky_registers WHERE craft_id=? AND register_no=?');
+  $stateQuery->bind_param('ii',$craft,$slot);$stateQuery->execute();
+  $steeringState=$stateQuery->get_result()->fetch_assoc();
+  if(!$steeringState||$steeringState['state']!=='running'){
+   moonDvFail($db,$craft,$slot,'ATTITUDE CONTROL FAILED');return;
+  }
   if($rcsMode){
    if(!moonDvRcsTranslate($db))moonDvFail($db,$craft,$slot,'RCS TRANSLATION UNAVAILABLE');
    return;
