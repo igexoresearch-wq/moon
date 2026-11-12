@@ -12,6 +12,13 @@ function moonDvRcsTranslate(mysqli $db):bool {
  $sm=$db->query('SELECT active,dependent,dependency,dry_mass FROM objects WHERE id=4 FOR UPDATE')->fetch_assoc();
  if(!$cm||!$sm||(int)$cm['active']!==1||(int)$sm['active']!==1||
    (int)$sm['dependent']!==1||(int)$sm['dependency']!==3)return false;
+ // Translation burn requires a free-flying CSM and no main-engine command.
+ $assembly=[];
+ $rows=$db->query('SELECT id,active,dependent,dependency FROM objects ORDER BY id FOR UPDATE');
+ while($row=$rows->fetch_assoc())$assembly[(int)$row['id']]=$row;
+ if(!moonPropulsionAllowed($assembly,4))return false;
+ $engaged=$db->query('SELECT id FROM propulsion_engines WHERE command_on=1 OR firing=1 LIMIT 1 FOR UPDATE')->fetch_assoc();
+ if($engaged)return false;
  $q=$db->prepare('SELECT * FROM rcs WHERE craft_id=4 FOR UPDATE');$q->execute();$rcs=$q->get_result()->fetch_assoc();
  if(!$rcs||(int)$rcs['enabled']!==1)return false;
  $power=$db->query("SELECT state FROM reliability_components WHERE component_key='cm_rcs_cluster' FOR UPDATE")->fetch_assoc();
