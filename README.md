@@ -177,3 +177,25 @@ One authoritative mission-time source: `sim_clock.tick` (elapsed simulated secon
 **Installation:** Deploy `met_clock.php`, `met_status.php`, `instruments/met_clock.php`, and revised `fido_console.php`. Apply `met_clock_schema.sql` once to add the instrument to CM Commander/Pilot, LM Commander/Pilot, and Flight Director. The clock is positioned at x=1510,y=65 on spacecraft cockpits and x=20,y=65 on Flight; use the existing instrument editor to reposition it. FIDO displays the clock in the header automatically, with no SQL insert. No reset or physics/worker code changes are needed. The clock works with both SPS P32 and RCS P33 time-of-ignition input cards because each uses the same sim_clock mission epoch. Automated tests: `tests/met_clock_test.php`.
 
 **Limitations:** MET counts *simulated time*, not guaranteed real elapsed wall time. Its initial zero is the simulation reset epoch, not an independently modeled historical Apollo launch ignition event. The clock is an indication only; it cannot pause, reset, or alter the simulation.
+
+### SPS overburn protection (November 2026)
+
+**Incident:** A user observed approximately 900 m/s on the CM's cumulative delta-V gauge after requesting ~99 m/s. The accumulator is persistent across burns and does **not** reset when P32 starts; therefore its reading alone cannot establish the per-burn delivered delta-V. The instrument and status API now display the DSKY's own `achieved_mps / target_mps` separately.
+
+**Critical safety change:** `dsky_dv_safety.php` computes the current propulsion attachment-root mass using the same dry masses and remaining tank fuel as the physics engine, and reads the SPS thrust. `dsky_rendezvous.php` independently checks elapsed ignition ticks against expected SPS impulse **before physics**, and checks the estimated impulse and plausibility of the G-meter acceleration **after physics**. It commands engine 401 off on overrun, missing model, or implausible sensor data. This is a conservative protective bound, not a precise finite-burn guidance solution. The 1-second simulation step and changing propellant mass still limit accuracy.
+
+**Deploy together:** `dsky_dv_safety.php` (new), `dsky_rendezvous.php` (revised), `delta_v_status.php` and `instruments/delta_v.php` (revised). The new safety module is a required include: deploy it before replacing the controller. Existing `execute.php` already calls the post-sensor cutoff. There is **no SQL migration**. Run `php tests/dsky_rendezvous_test.php` as a source/math regression. Do not conduct another ignition test until these files are deployed and the previous active burn is verified stopped.
+
+**Emergency stop if the DSKY CLEAR command cannot stop an active SPS:**
+```sql
+START TRANSACTION;
+UPDATE propulsion_engines SET command_on=0, firing=0 WHERE id=401;
+UPDATE dsky_registers SET state='aborted', message='EMERGENCY SPS CUTOFF'
+ WHERE craft_id=3 AND program_no=32 AND state IN ('queued','running');
+UPDATE dsky_dv_burns SET status='ABORTED'
+ WHERE craft_id=3 AND register_no IN (
+  SELECT register_no FROM dsky_registers WHERE craft_id=3 AND program_no=32
+ );
+COMMIT;
+```
+This directly changes engine commands and register state but never changes spacecraft position, velocity or mission clock. Coordinate database writes with the tick worker's transaction; confirm the engine is off afterward. Preserve incident data before clearing registers when possible.
