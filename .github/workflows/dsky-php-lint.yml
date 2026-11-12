@@ -6,6 +6,10 @@ on:
       - "instruments/dsky.php"
       - "execute.php"
       - "navigation.php"
+      - "fido_navigation.php"
+      - "fido_pages/navigation.php"
+      - "fido_console.php"
+      - "tests/fido_navigation_test.php"
       - "tests/navigation_test.php"
       - "physics.php"
       - "delta_v*.php"
@@ -26,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check PHP syntax
         run: |
-          for file in dsky_runtime.php dsky_rcs.php dsky_api.php instruments/dsky.php delta_v.php delta_v_status.php instruments/delta_v.php rtcc_rendezvous.php rtcc_solution.php star_alignment.php star_catalog.php instruments/sextant.php instruments/window.php tests/star_alignment_test.php fido_pages/rendezvous.php tests/rtcc_rendezvous_test.php execute.php physics.php navigation.php tests/navigation_test.php; do
+          for file in dsky_runtime.php dsky_rcs.php dsky_api.php instruments/dsky.php delta_v.php delta_v_status.php instruments/delta_v.php rtcc_rendezvous.php rtcc_solution.php star_alignment.php star_catalog.php instruments/sextant.php instruments/window.php tests/star_alignment_test.php fido_pages/rendezvous.php tests/rtcc_rendezvous_test.php execute.php physics.php navigation.php tests/navigation_test.php fido_navigation.php fido_pages/navigation.php fido_console.php tests/fido_navigation_test.php; do
             php -l "$file" || exit 1
           done
       - name: Rendezvous engine regression tests
@@ -35,3 +39,5 @@ jobs:
         run: php tests/star_alignment_test.php
       - name: Navigation math regression tests
         run: php tests/navigation_test.php
+      - name: Ground navigation math regression
+        run: php tests/fido_navigation_test.php
