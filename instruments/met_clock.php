@@ -3,6 +3,14 @@
 // instrument AND a compact Mission Control FIDO header widget.
 $metId='met-'.bin2hex(random_bytes(5));
 $metCompact=($metCompact??false)===true;
+$metInitial='---:--:--';
+try{
+ if(isset($conn)&&$conn instanceof mysqli){
+  require_once __DIR__.'/../met_clock.php';
+  $metRow=$conn->query('SELECT tick FROM sim_clock WHERE id=1')->fetch_assoc();
+  if($metRow!==null)$metInitial=moonMetFormat((int)$metRow['tick']);
+ }
+}catch(Throwable $metError){error_log('Moon MET initial snapshot: '.$metError->getMessage());}
 ?>
 <div id="<?=htmlspecialchars($metId,ENT_QUOTES)?>" class="moon-met-clock <?=$metCompact?'moon-met-compact':''?>" role="timer" aria-label="Mission elapsed time">
 <style>
@@ -14,10 +22,11 @@ $metCompact=($metCompact??false)===true;
 #<?=htmlspecialchars($metId)?>.moon-met-compact{width:230px;padding:3px 7px;border-width:2px;display:inline-flex;align-items:center;gap:8px;vertical-align:middle}
 #<?=htmlspecialchars($metId)?>.moon-met-compact .met-label{font-size:10px;margin:0;white-space:nowrap}
 #<?=htmlspecialchars($metId)?>.moon-met-compact .met-face{font-size:16px;border-width:2px;padding:3px}
-#<?=htmlspecialchars($metId)?>.moon-met-compact .met-units,#<?=htmlspecialchars($metId)?>.moon-met-compact .met-status{display:none}
+#<?=htmlspecialchars($metId)?>.moon-met-compact .met-units{display:none}
+#<?=htmlspecialchars($metId)?>.moon-met-compact .met-status{display:block;font-size:8px;margin:0;max-width:125px}
 </style>
 <div class="met-label">MISSION ELAPSED TIME</div>
-<div class="met-face" data-met-display>---:--:--</div>
+<div class="met-face" data-met-display><?=htmlspecialchars($metInitial,ENT_QUOTES)?></div>
 <div class="met-units"><span>HOURS</span><span>MINUTES</span><span>SECONDS</span></div>
 <div class="met-status" data-met-status>SYNCING</div>
 </div>
@@ -32,16 +41,21 @@ $metCompact=($metCompact??false)===true;
   if(busy)return;
   busy=true;
   try{
-   const res=await fetch('met_status.php',{cache:'no-store'});
+   const res=await fetch('met_status.php',{cache:'no-store',credentials:'same-origin'});
+   if(res.redirected)throw Error('LOGIN REQUIRED / RELOAD');
+   const kind=res.headers.get('content-type')||'';
+   if(!kind.includes('application/json'))throw Error('MET HTTP '+res.status+' / NON-JSON');
    const data=await res.json();
-   if(!res.ok||!Number.isSafeInteger(data.tick)||data.tick<0||typeof data.met!=='string')
-    throw Error(data.error||'CLOCK UNAVAILABLE');
+   if(!res.ok)throw Error(data.error||'MET HTTP '+res.status);
+   const tick=typeof data.tick==='string'&&/^\d+$/.test(data.tick)?Number(data.tick):data.tick;
+   if(!Number.isSafeInteger(tick)||tick<0||typeof data.met!=='string')
+    throw Error('INVALID MET RESPONSE');
    display.textContent=data.met;
    // Distinguish a paused/stalled simulation from wall-clock time:
    // never invent seconds between authoritative server snapshots.
-   status.textContent=lastTick===data.tick?'MET HOLD':'MET RUNNING';
-   lastTick=data.tick;
-  }catch(e){status.textContent='MET SIGNAL LOST';}
+   status.textContent=lastTick===tick?'MET HOLD':'MET RUNNING';
+   lastTick=tick;
+  }catch(e){status.textContent=e instanceof Error?e.message:'MET REQUEST FAILED';}
   finally{busy=false;}
  }
  poll();
