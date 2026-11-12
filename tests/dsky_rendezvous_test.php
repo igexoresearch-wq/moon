@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once dirname(__DIR__).'/dsky_rendezvous.php';
 require_once dirname(__DIR__).'/rtcc_maneuver.php';
+require_once dirname(__DIR__).'/dsky_dv_safety.php';
 function checkManeuver(bool $condition,string $label):void{
  if(!$condition)throw new RuntimeException($label);
 }
@@ -48,3 +49,17 @@ checkManeuver(substr_count($holdController,'moonDskyTargetTick($db,$craft,$slot,
  'Scheduled burns steer before and after ignition');
 checkManeuver(str_contains($holdController,"ATTITUDE CONTROL FAILED"),
  'An in-flight steering failure must abort the engine burn');
+
+checkManeuver(abs(moonDvSpsExpectedAcceleration(91200.,30400.)-3.)<1e-8,'Nominal SPS acceleration');
+checkManeuver(!moonDvSpsWatchdogExceeded(99.,91200.,30400.,30),'Before 99 m/s target window');
+checkManeuver(moonDvSpsWatchdogExceeded(99.,91200.,30400.,60),'Overrun must cause independent SPS cutoff');
+checkManeuver(!moonDvSpsSamplePlausible(0.,3.),'Broken zero-acceleration G-meter must stop SPS');
+checkManeuver(moonDvSpsSamplePlausible(3.,3.),'Nominal G-meter acceleration accepted');
+$cutoff=file_get_contents(dirname(__DIR__).'/dsky_rendezvous.php');
+checkManeuver(str_contains($cutoff,'SPS WATCHDOG - ENGINE STOPPED'),
+ 'Pre-physics watchdog for existing overburn');
+checkManeuver(str_contains($cutoff,'SPS DELTA-V WATCHDOG CUTOFF'),
+ 'Post-physics independent measured burn watchdog');
+$deltaApi=file_get_contents(dirname(__DIR__).'/delta_v_status.php');
+checkManeuver(str_contains($deltaApi,'active_dsky_burn'),
+ 'Expose separate DSKY burn counter from cumulative gauge');
