@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__.'/dsky_rcs.php';
 require_once __DIR__.'/propulsion.php';
 require_once __DIR__.'/star_alignment.php';
+require_once __DIR__.'/dsky_rendezvous.php';
 function moonDskyInstalled(mysqli $db):bool {
  static $available=null;
  if($available!==null)return $available;
@@ -77,26 +78,26 @@ function moonDskyImuObservation(mysqli $db,int $craft,int $expectedTick):?array 
  }
  return ['angles'=>$angles,'rates'=>$rates];
 }
-function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $config,int $nextTick):void {
+function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $config,int $nextTick,bool $markComplete=true):bool {
  $axis=(string)($config['axis']??'');
- $axes=$axis==='all'?['pitch','yaw','roll']:[$axis];
- if(array_diff($axes,['pitch','yaw','roll'])){moonDskyFailure($db,$craft,$slot,'UNSUPPORTED AXIS');return;}
+ $axes=$axis==='all'?['pitch','yaw','roll']:($axis==='pitch_yaw'?['pitch','yaw']:[$axis]);
+ if(array_diff($axes,['pitch','yaw','roll'])){moonDskyFailure($db,$craft,$slot,'UNSUPPORTED AXIS');return false;}
  $scale=(float)($config['scale']??0);
- if($scale<=0){moonDskyFailure($db,$craft,$slot,'INVALID SCALE');return;}
+ if($scale<=0){moonDskyFailure($db,$craft,$slot,'INVALID SCALE');return false;}
  $reading=moonDskyImuObservation($db,$craft,$nextTick-1);
  if($reading===null){
   moonDskyImuHold($db,$craft,$slot,'WAITING FOR FRESH IMU');
-  return;
+  return false;
  }
  foreach($axes as $name)if($reading['rates'][$name]===null){
   moonDskyImuHold($db,$craft,$slot,'ACQUIRING IMU RATE');
-  return;
+  return false;
  }
  $finished=true;
  moonDskyImuHold($db,$craft,$slot,'');
  foreach($axes as $index=>$name){
   $field='field'.($index+1);
-  if($reg[$field]===null){moonDskyFailure($db,$craft,$slot,'TARGET NOT ENTERED');return;}
+  if($reg[$field]===null){moonDskyFailure($db,$craft,$slot,'TARGET NOT ENTERED');return false;}
   $target=(float)$reg[$field]/$scale;
   $error=moonDskyAxisError($reading['angles'][$name],$target);
   $rate=$reading['rates'][$name];
@@ -107,10 +108,10 @@ function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $co
   $system=$craft===3?4:6;
   $q=$db->prepare('SELECT thrust_n,torque_arm_m,inertia_kg_m2,pulse_seconds FROM rcs WHERE craft_id=?');
   $q->bind_param('i',$system);$q->execute();$rcs=$q->get_result()->fetch_assoc();
-  if(!$rcs){moonDskyFailure($db,$craft,$slot,'RCS UNAVAILABLE');return;}
+  if(!$rcs){moonDskyFailure($db,$craft,$slot,'RCS UNAVAILABLE');return false;}
   $dv=(float)$rcs['thrust_n']*(float)$rcs['torque_arm_m']*(float)$rcs['pulse_seconds']
     /max(1.,(float)$rcs['inertia_kg_m2'])*180/M_PI;
-  if($dv<=0){moonDskyFailure($db,$craft,$slot,'RCS CALIBRATION');return;}
+  if($dv<=0){moonDskyFailure($db,$craft,$slot,'RCS CALIBRATION');return false;}
   $brake=($rate*$rate)/(2*$dv);
   $desired=abs($rate)>0.05 && (($error*$rate<0)||abs($error)<=$brake)
     ? ($rate>0?-1:1)
@@ -123,13 +124,14 @@ function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $co
   }
   if(!moonDskyRcsPulse($db,$craft,$name,$desired,$pulse)){
    moonDskyImuHold($db,$craft,$slot,'RCS HOLD - POWER / FUEL / ATTACHMENT');
-   return;
+   return false;
   }
  }
- if($finished){
+ if($finished && $markComplete){
   $q=$db->prepare("UPDATE dsky_registers SET state='complete',message='IMU TARGET REACHED' WHERE craft_id=? AND register_no=?");
   $q->bind_param('ii',$craft,$slot);$q->execute();
  }
+ return $finished;
 }
 /**
  * P30 three-star optical alignment: the ONLY output is the IMU estimate.
@@ -187,8 +189,8 @@ function moonDskyBeforePhysics(mysqli $db,int $nextTick):void {
  foreach($rows as $r){
   $craft=(int)$r['craft_id'];$slot=(int)$r['register_no'];$kind=(string)$r['operation'];
   if(!in_array($craft,[3,6],true)){moonDskyFailure($db,$craft,$slot,'INVALID COMPUTER');continue;}
-  if(!in_array($kind,['burn_seconds','attitude_target','platform_align'],true)){moonDskyFailure($db,$craft,$slot,'INVALID OPERATION');continue;}
-  $group=$kind==='burn_seconds'?'engine':($kind==='platform_align'?'alignment':'attitude');
+  if(!in_array($kind,['burn_seconds','attitude_target','platform_align','timed_delta_v'],true)){moonDskyFailure($db,$craft,$slot,'INVALID OPERATION');continue;}
+  $group=in_array($kind,['burn_seconds','timed_delta_v'],true)?'engine':($kind==='platform_align'?'alignment':'attitude');
   if(isset($active[$craft][$group]))continue;
   $active[$craft][$group]=true;
   if($r['state']==='queued'){
@@ -196,6 +198,10 @@ function moonDskyBeforePhysics(mysqli $db,int $nextTick):void {
    $q->bind_param('iii',$nextTick,$craft,$slot);$q->execute();
   }
   $config=moonDskyConfig($r);
+  if($kind==='timed_delta_v'){
+   moonDvBeforePhysics($db,$craft,$slot,$r,$nextTick);
+   continue;
+  }
   if($kind==='platform_align'){
    moonDskyPlatformAlign($db,$craft,$slot,$r,$nextTick);
    continue;
