@@ -26,7 +26,7 @@ The existing `physics.php` calls `propulsion.php` during each one-second transac
 
 ## Simplified mission computer / DSKY
 
-The new `instruments/dsky.php` provides four selectable numeric input registers (R1–R4), a PROGRAM keypad, ENTER, EXECUTE, and five persistent execution registers. A CM and LM computer share the same interface design but have independent database state. Currently only CM programs 1–5 are installed. LM programs can be added later by SQL.
+The new `instruments/dsky.php` provides four selectable numeric input registers (R1–R4), a PROGRAM keypad, ENTER, EXECUTE, and five persistent execution registers. A CM and LM computer share the same interface design but have independent database state. CM programs 1–5, 30–32 and 33 are installed via their respective SQL migrations, while LM programs 30 and 31 are also available after the star-alignment migration. See the later sections for P32/P33.
 
 **Deploy and initialize in this order:**
 1. Ensure the existing `rcs_schema.sql` and `propulsion_schema.sql` are already installed, with their supporting PHP worker files deployed. The new system does not recreate them.
@@ -77,7 +77,7 @@ It is sampled inside the worker's one-second transaction immediately after `moon
 
 The current readout measures **signed axial accumulated delta-V**, not inertial three-axis velocity change. It is appropriate as an educational forward-axis burn counter, including negative acceleration, but is not a vector guidance solution when the thrust axis changes. This counter integrates whatever axial non-gravitational acceleration the G meter detects, including any vehicle maneuvers. It is subject to the existing G-meter's sample quantization and accuracy.
 
-RESET ZERO stores `accumulated_mps=0` with the current simulation tick under a database transaction. It does not change engines, spacecraft velocity, IMU alignment, or the G meter. The same sample cannot be integrated twice. Unpowered, missing, or stale G-meter readings cause a HOLD rather than an invented acceleration. The counter remains persistent across page reloads and stops adding while measurements are unavailable. DSKY burn-to-target-delta-V is intentionally **not connected yet**.
+RESET ZERO stores `accumulated_mps=0` with the current simulation tick under a database transaction. It does not change engines, spacecraft velocity, IMU alignment, or the G meter. The same sample cannot be integrated twice. Unpowered, missing, or stale G-meter readings cause a HOLD rather than an invented acceleration. The counter remains persistent across page reloads and stops adding while measurements are unavailable. The standalone accumulator is not directly wired to a DSKY target; **P32/P33 use the same G-meter measurements through a separate, scheduled burn controller** after their migration.
 
 The new accumulator is optional: the worker checks for the new table and skips it until SQL is installed. The G-meter savepoint also prevents an optional instrument error from corrupting orbital physics. Runtime validation on GoDaddy remains pending.
 
