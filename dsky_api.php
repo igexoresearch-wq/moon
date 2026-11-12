@@ -74,7 +74,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    $busy->bind_param('i',$craft);$busy->execute();
    foreach($busy->get_result()->fetch_all(MYSQLI_ASSOC) as $existing){
     $kind=(string)$existing['operation'];
-    if(in_array($kind,['timed_delta_v','timed_rcs_dv'],true) || (in_array($p['operation'],['timed_delta_v','timed_rcs_dv'],true) && in_array($kind,['burn_seconds','attitude_target'],true)))
+    if(in_array($kind,['timed_delta_v','timed_rcs_dv'],true) || (in_array($p['operation'],['timed_delta_v','timed_rcs_dv'],true) && in_array($kind,['burn_seconds','attitude_target','platform_align'],true)))
      throw new DomainException('MANEUVER / ACTUATOR ALREADY OCCUPIED');
    }
    // Completed registers are reusable; failed or aborted registers require a manual CLEAR.
