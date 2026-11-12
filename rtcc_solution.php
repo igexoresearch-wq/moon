@@ -19,7 +19,7 @@ try{
  // Read a single consistent FIDO ground-estimate epoch, never the objects table.
  $conn->begin_transaction(MYSQLI_TRANS_START_READ_ONLY);
  $snapshot=fidoGroundSnapshot($conn);
- $estimates=$snapshot['objects'];
+ $estimates=$snapshot['estimates'];
  $epoch=$snapshot['tick'];
  $conn->commit();
  $result=rtccRendezvousSolve($estimates,$options);
