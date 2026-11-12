@@ -103,7 +103,7 @@ function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $co
   $rate=$reading['rates'][$name];
   // Scheduled rendezvous burns use tighter pointing tolerance than a generic attitude hold.
   $angleTolerance=$markComplete?0.5:0.3;
-  $rateTolerance=$markComplete?0.02:0.01;
+  $rateTolerance=$markComplete?0.02:0.02;
   if(abs($error)<=$angleTolerance && abs($rate)<=$rateTolerance)continue;
   $finished=false;
   // The stopping decision uses only the IMU angle and its inferred rate.
