@@ -17,8 +17,22 @@ register_shutdown_function(static function():void {
 // must not each consume one of the hosting account's limited connections.
 $moonWorkerLockFile=fopen(sys_get_temp_dir().'/moon_program_execute_'.md5(__DIR__).'.lock','c');
 if($moonWorkerLockFile===false)throw new RuntimeException('Cannot create Moon worker process lock');
-if(!flock($moonWorkerLockFile,LOCK_EX|LOCK_NB)){moonWorkerDiagnostic('EXIT process lock occupied');fclose($moonWorkerLockFile);exit;}
-moonWorkerDiagnostic('Process lock acquired');
+// Cron starts on minute boundaries, while a 60-tick batch can legitimately
+// still be committing its last tick. Wait briefly rather than DROP a whole
+// batch due to a millisecond-scale lock collision. Never open MySQL while
+// waiting, and never wait indefinitely behind a hung worker.
+$moonLockWaitStarted=microtime(true);
+$moonLockAcquired=false;
+do{
+ if(flock($moonWorkerLockFile,LOCK_EX|LOCK_NB)){$moonLockAcquired=true;break;}
+ usleep(100000);
+}while(microtime(true)-$moonLockWaitStarted<4.0);
+$moonLockWaitMs=(int)round((microtime(true)-$moonLockWaitStarted)*1000);
+if(!$moonLockAcquired){
+ moonWorkerDiagnostic('EXIT process lock occupied after '.$moonLockWaitMs.'ms wait');
+ fclose($moonWorkerLockFile);exit;
+}
+moonWorkerDiagnostic('Process lock acquired; waited_ms='.$moonLockWaitMs);
 try{
  require_once __DIR__.'/common.php';
  moonWorkerDiagnostic('Database connection established');
@@ -161,7 +175,11 @@ try {
    error_log('Moon physics worker failed at sim tick '.((int)($clock['tick']??-1)+1).': '.$e->getMessage());
    throw $e;
   }
-  $delay=($started+$tick+1)-microtime(true);
+  // Each physics step is still exactly 1.0 *simulated* second.
+  // A 0.97s wall-time cadence completes 60 ticks in ~58.2s, leaving
+  // headroom for PHP startup, cron jitter and lock release. The next
+  // minute's batch preserves the average 60 simulated sec / wall minute.
+  $delay=($started+($tick+1)*0.97)-microtime(true);
   if($delay>0)usleep((int)round($delay*1000000));
  }
  moonWorkerDiagnostic('SUCCESS 60 ticks completed');
