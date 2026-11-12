@@ -18,4 +18,8 @@ metAssert(str_contains($clock,'SELECT tick FROM sim_clock WHERE id=1'),'Read rea
 metAssert(!str_contains($clock,'time()'),'Never use wall clock');
 $instrument=file_get_contents($root.'/instruments/met_clock.php');
 metAssert(str_contains($instrument,"fetch('met_status.php'"),'All consoles pull one clock');
+metAssert(str_contains($instrument,'SELECT tick FROM sim_clock WHERE id=1'),'Server-rendered MET fallback');
+metAssert(str_contains($instrument,'LOGIN REQUIRED / RELOAD'),'Identify authentication redirects');
+metAssert(str_contains($instrument,'MET HTTP '),'Report HTTP response failures');
+metAssert(!str_contains($instrument,"status.textContent='MET SIGNAL LOST'"),'Do not mask errors with generic message');
 echo "Mission elapsed clock formatting and source checks passed\n";
