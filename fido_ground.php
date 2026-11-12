@@ -40,5 +40,5 @@ function fidoGroundSnapshot(mysqli $db):array {
   }
   if(!$isBody){$out[$id]['status']=$r['status'];$out[$id]['last_tick']=$tick;$out[$id]['last_tracking_tick']=$r['last_tracking_tick'];}
  }
- return ['objects'=>$out,'tick'=>$tick];
+ return ['estimates'=>$out,'tick'=>$tick];
 }
