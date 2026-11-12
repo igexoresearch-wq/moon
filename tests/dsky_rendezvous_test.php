@@ -44,7 +44,7 @@ $runtimeHold=file_get_contents(dirname(__DIR__).'/dsky_runtime.php');
 checkManeuver(str_contains($runtimeHold,'$angleTolerance=$markComplete?0.5:0.3;'),
  'P32/P33 ±0.3 degree attitude window');
 $holdController=file_get_contents(dirname(__DIR__).'/dsky_rendezvous.php');
-checkManeuver(substr_count($holdController,"moonDskyTargetTick($db,$craft,$slot,$steer")>=2,
+checkManeuver(substr_count($holdController,'moonDskyTargetTick($db,$craft,$slot,$steer')>=2,
  'Scheduled burns steer before and after ignition');
 checkManeuver(str_contains($holdController,"ATTITUDE CONTROL FAILED"),
  'An in-flight steering failure must abort the engine burn');
