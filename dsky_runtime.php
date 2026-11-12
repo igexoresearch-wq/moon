@@ -101,7 +101,10 @@ function moonDskyTargetTick(mysqli $db,int $craft,int $slot,array $reg,array $co
   $target=(float)$reg[$field]/$scale;
   $error=moonDskyAxisError($reading['angles'][$name],$target);
   $rate=$reading['rates'][$name];
-  if(abs($error)<=0.5 && abs($rate)<=0.02)continue;
+  // Scheduled rendezvous burns use tighter pointing tolerance than a generic attitude hold.
+  $angleTolerance=$markComplete?0.5:0.1;
+  $rateTolerance=$markComplete?0.02:0.01;
+  if(abs($error)<=$angleTolerance && abs($rate)<=$rateTolerance)continue;
   $finished=false;
   // The stopping decision uses only the IMU angle and its inferred rate.
   // The physical RCS jet then changes the real angular velocity.
