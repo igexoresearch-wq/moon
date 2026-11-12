@@ -5,6 +5,16 @@ require_once __DIR__.'/rtcc_rendezvous.php';
 require_once __DIR__.'/fido_ground.php';
 header('Cache-Control: no-store');
 $wantJson=($_GET['format']??'')==='json';
+$profile=(string)($_GET['search']??'standard');
+$profiles=[
+ 'near'=>['delays_s'=>[0,300,600],'flights_s'=>[300,600,1200,1800]],
+ 'standard'=>['delays_s'=>[0,600,1800,3600],'flights_s'=>[1200,2400,3600,5400,7200]],
+ 'extended'=>['delays_s'=>[0,900,1800,3600],'flights_s'=>[3600,5400,7200,10800,14400]]
+];
+if(!isset($profiles[$profile]))$profile='standard';
+$maxDv=(string)($_GET['dv']??'1200');
+if(!in_array($maxDv,['250','500','1200','2500'],true))$maxDv='1200';
+$options=$profiles[$profile]+['max_injection_mps'=>(float)$maxDv];
 try{
  // Read a single consistent FIDO ground-estimate epoch, never the objects table.
  $conn->begin_transaction(MYSQLI_TRANS_START_READ_ONLY);
@@ -12,7 +22,7 @@ try{
  $estimates=$snapshot['objects'];
  $epoch=$snapshot['tick'];
  $conn->commit();
- $result=rtccRendezvousSolve($estimates);
+ $result=rtccRendezvousSolve($estimates,$options);
  if($wantJson){
   header('Content-Type: application/json; charset=utf-8');
   echo json_encode($result,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT);exit;
@@ -36,10 +46,26 @@ function rtccTime(int $seconds):string {
 h1{font-size:21px;border-bottom:1px solid #62887d;padding-bottom:12px}h2{font-size:16px;color:#a6d5dc}
 a{color:#a6d5dc}.note{color:#f0cf87;line-height:1.5}table{width:100%;border-collapse:collapse;font-size:13px}
 td,th{padding:10px 6px;border-bottom:1px solid #3e5558;text-align:right}td:first-child,th:first-child{text-align:left}
-.panel{border:1px solid #59737b;padding:14px;margin-top:16px}b{color:#fff}small{color:#adc7bf}
+.panel{border:1px solid #59737b;padding:14px;margin-top:16px}select,button{font:14px monospace;background:#253b40;color:#e4ece8;border:1px solid #73938b;padding:8px}label{display:grid;gap:7px;color:#a9d2cf}b{color:#fff}small{color:#adc7bf}
 </style></head><body>
 <h1>RTCC / RENDEZVOUS TARGETING — CM TO LM</h1>
 <p><a href="fido_console.php?display=rendezvous">RETURN TO FIDO</a></p>
+<form method="get" class="panel" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
+<label>SEARCH WINDOW
+<select name="search">
+<option value="near" <?= $profile==='near'?'selected':'' ?>>NEAR / UP TO 40 MIN</option>
+<option value="standard" <?= $profile==='standard'?'selected':'' ?>>STANDARD / UP TO 3 HOURS</option>
+<option value="extended" <?= $profile==='extended'?'selected':'' ?>>EXTENDED / UP TO 5 HOURS</option>
+</select></label>
+<label>MAX DELTA-V PER IMPULSE
+<select name="dv">
+<?php foreach(['250','500','1200','2500'] as $limit): ?>
+<option value="<?=$limit?>" <?= $maxDv===$limit?'selected':'' ?>><?=$limit?> M/S</option>
+<?php endforeach; ?>
+</select></label>
+<button type="submit">CALCULATE MANEUVERS</button>
+</form>
+<p class="note">Solutions use FIDO's estimated states. Calculation is advisory and assumes impulsive burns, not finite engine firings.</p>
 <?php if(isset($error)): ?>
 <p class="note"><?=htmlspecialchars($error,ENT_QUOTES)?></p>
 <?php else: ?>
@@ -78,6 +104,14 @@ YAW <?=rtccFmt($top['matching_attitude']['yaw_deg'],3)?> DEG;
 <?php else: ?>NONE;
 <?php endif; ?>
 DELTA-V <?=rtccFmt($top['matching_dv_mps'],3)?> M/S</p>
+<p>FIRST IMPULSE XYZ M/S:
+<?=rtccFmt($top['dv1'][0],3)?> /
+<?=rtccFmt($top['dv1'][1],3)?> /
+<?=rtccFmt($top['dv1'][2],3)?></p>
+<p>MATCH IMPULSE XYZ M/S:
+<?=rtccFmt($top['dv2'][0],3)?> /
+<?=rtccFmt($top['dv2'][1],3)?> /
+<?=rtccFmt($top['dv2'][2],3)?></p>
 <p>TRANSFER COAST <?=rtccTime($top['transfer_seconds'])?> /
 PREDICTED NOMINAL POSITION MISS <?=rtccFmt($top['miss_m'],2)?> M</p>
 </div>
