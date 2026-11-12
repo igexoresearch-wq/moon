@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__.'/common.php';
 require_once __DIR__.'/rtcc_rendezvous.php';
 require_once __DIR__.'/fido_ground.php';
+require_once __DIR__.'/rtcc_maneuver.php';
 header('Cache-Control: no-store');
 $wantJson=($_GET['format']??'')==='json';
 $profile=(string)($_GET['search']??'standard');
@@ -22,7 +23,41 @@ try{
  $estimates=$snapshot['estimates'];
  $epoch=$snapshot['tick'];
  $conn->commit();
- $result=rtccRendezvousSolve($estimates,$options);
+ // Guarantee absolute MET times at minute resolution: never move an
+ // impulsive solver ignition to another time AFTER computing its trajectory.
+ $planningTick=intdiv($epoch+179,60)*60; // first burn at least 2 minutes away
+ $planning=rtccAdvanceToMet($estimates,$planningTick-$epoch);
+ $result=rtccRendezvousSolve($planning,$options);
+ $result['estimate_tick']=$epoch;
+ $result['planning_epoch_tick']=$planningTick;
+ // Read SPS model only. No reading of physical objects or onboard navigation.
+ $sps=$conn->query("SELECT thrust_n,mass_flow_kg_s FROM propulsion_engines WHERE id=401")->fetch_assoc();
+ $tank=$conn->query("SELECT remaining_kg FROM propulsion_tanks WHERE vehicle_id=4")->fetch_assoc();
+ $exhaust=$sps && (float)$sps['mass_flow_kg_s']>0
+  ?(float)$sps['thrust_n']/(float)$sps['mass_flow_kg_s']:null;
+ $fuel=$tank?(float)$tank['remaining_kg']:null;
+ foreach($result['solutions'] as &$plan){
+  $first=$planningTick+$plan['start_seconds'];
+  $second=$planningTick+$plan['intercept_seconds'];
+  $plan['burn1']=[
+   'met_tick'=>$first,'met'=>rtccMetLabel($first),'hhmm'=>sprintf('%04d',rtccMetHhmm($first)),
+   'dv_mps'=>$plan['injection_dv_mps'],'dv_code'=>rtccDvDsky($plan['injection_dv_mps']),
+   'pitch_code'=>rtccAngleDsky($plan['injection_attitude'],'pitch'),
+   'yaw_code'=>rtccAngleDsky($plan['injection_attitude'],'yaw')
+  ];
+  $plan['burn2']=[
+   'met_tick'=>$second,'met'=>rtccMetLabel($second),'hhmm'=>sprintf('%04d',rtccMetHhmm($second)),
+   'dv_mps'=>$plan['matching_dv_mps'],'dv_code'=>rtccDvDsky($plan['matching_dv_mps']),
+   'pitch_code'=>rtccAngleDsky($plan['matching_attitude'],'pitch'),
+   'yaw_code'=>rtccAngleDsky($plan['matching_attitude'],'yaw')
+  ];
+  $plan['fuel_budget']=$fuel!==null&&$exhaust!==null
+   ?rtccFuelBudget(11660.,$fuel,$exhaust,[$plan['injection_dv_mps'],$plan['matching_dv_mps']]):null;
+  $plan['dsky_compatible']=$plan['burn1']['dv_code']!==null&&$plan['burn2']['dv_code']!==null
+    &&$plan['burn1']['pitch_code']!==null&&$plan['burn2']['pitch_code']!==null;
+ }
+ unset($plan);
+ $result['fuel_assumption']='Nominal bare CM+SM dry mass 11660 kg plus current SPS propellant; excludes attached LM and other stages';
  if($wantJson){
   header('Content-Type: application/json; charset=utf-8');
   echo json_encode($result,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT);exit;
@@ -79,6 +114,7 @@ RELATIVE SPEED <b><?=rtccFmt($result['relative_speed_mps'])?> M/S</b></p>
 <p class="note">No safe candidate within the current search limits. No burn instructions issued. This does not prove rendezvous is impossible.</p>
 <?php else: ?>
 <h2>LOWEST TOTAL DELTA-V CANDIDATES</h2>
+<p>ESTIMATE MET <?=rtccMetLabel($epoch)?> / CALCULATION EPOCH <?=rtccMetLabel($planningTick)?></p>
 <table><thead><tr><th>OPTION</th><th>IGNITION IN</th><th>INTERCEPT IN</th><th>FIRST DV M/S</th><th>MATCH DV M/S</th><th>TOTAL DV M/S</th><th>MISS M</th></tr></thead><tbody>
 <?php foreach($result['solutions'] as $idx=>$plan): ?>
 <tr><td><?=($idx+1)?></td><td><?=rtccTime($plan['start_seconds'])?></td>
@@ -116,11 +152,39 @@ DELTA-V <?=rtccFmt($top['matching_dv_mps'],3)?> M/S</p>
 PREDICTED NOMINAL POSITION MISS <?=rtccFmt($top['miss_m'],2)?> M</p>
 </div>
 <?php endif;?>
+<?php if(!empty($result['solutions'])): ?>
+<h2>DSKY P32 / MANEUVER ENTRY CARDS</h2>
+<?php foreach($result['solutions'] as $index=>$plan): ?>
+<div class="panel">
+<h2>OPTION <?=($index+1)?> / TWO MANEUVERS</h2>
+<?php foreach(['burn1'=>'FIRST BURN','burn2'=>'SECOND BURN'] as $key=>$label):
+ $burn=$plan[$key];?>
+<h2><?=$label?> / MET <?=htmlspecialchars($burn['met'])?></h2>
+<table><thead><tr><th>REGISTER</th><th>VALUE TO ENTER</th><th>MEANING</th></tr></thead><tbody>
+<tr><td>R1</td><td><?=htmlspecialchars($burn['hhmm'])?></td><td>MISSION HHMM (100-HOUR DIGIT INFERRED)</td></tr>
+<tr><td>R2</td><td><?=$burn['dv_code']===null?'NOT ENCODABLE':sprintf('%04d',$burn['dv_code'])?></td><td>DELTA-V <?=rtccFmt($burn['dv_mps'],2)?> M/S; ENTRY 0.1 M/S</td></tr>
+<tr><td>R3</td><td><?=$burn['pitch_code']===null?'NOT ENCODABLE':sprintf('%04d',$burn['pitch_code'])?></td><td>INERTIAL PITCH / TENTHS DEG</td></tr>
+<tr><td>R4</td><td><?=$burn['yaw_code']===null?'NOT ENCODABLE':sprintf('%04d',$burn['yaw_code'])?></td><td>INERTIAL YAW / TENTHS DEG</td></tr>
+</tbody></table>
+<?php endforeach;?>
+<?php if($plan['fuel_budget']!==null):
+ $firstFuel=$plan['fuel_budget'][0];$secondFuel=$plan['fuel_budget'][1]; ?>
+<p>ESTIMATED SPS FUEL: FIRST <?=rtccFmt($firstFuel['fuel_kg'],1)?> KG /
+SECOND <?=rtccFmt($secondFuel['fuel_kg'],1)?> KG /
+TOTAL <?=rtccFmt($firstFuel['fuel_kg']+$secondFuel['fuel_kg'],1)?> KG /
+AFTER BOTH <?=rtccFmt($secondFuel['remaining_kg'],1)?> KG</p>
+<p><?= $firstFuel['available']&&$secondFuel['available']?'NOMINAL PROPELLANT BUDGET AVAILABLE':'WARNING: NOMINAL PROPELLANT INSUFFICIENT' ?></p>
+<?php else: ?><p>SPS FUEL ESTIMATE UNAVAILABLE: INSTALL PROPULSION TABLES</p><?php endif;?>
+<p class="note"><?= $plan['dsky_compatible']?'P32 ENTRY CODES AVAILABLE':'ONE OR MORE BURNS CANNOT BE ENTERED WITH FOUR-DIGIT P32; REPLAN OR CHANGE PROGRAM RANGE.' ?>
+Each burn must be entered and EXECUTED separately; do not queue the second before the first completes. Recalculate after the first physical burn.</p>
+</div>
+<?php endforeach;?>
+<?php endif;?>
 <div class="panel"><h2>FLIGHT DYNAMICS LIMITATIONS</h2>
 <p class="note">ADVISORY SOLUTION ONLY. DO NOT ENTER AS A DSKY BURN PROGRAM YET.
 These are instantaneous inertial impulses, not executable finite engine burns.
 Attitudes are NOT IMU-referenced; roll is unspecified. No hardware, fuel,
 ignition, separation, docking, or final approach clearance has been certified.</p>
-<p>TRACKING INPUT: INDEPENDENT FIDO GROUND-ESTIMATED CM/LM STATE. CALCULATION MODEL: EARTH + MOVING MOON GRAVITY.
+<p>TRACKING INPUT: INDEPENDENT FIDO GROUND-ESTIMATED CM/LM STATE. NOMINAL FUEL ASSUMES BARE CM+SM DRY MASS 11660 KG; ATTACHED LM OR OTHER MASS IS NOT INCLUDED. CALCULATION MODEL: EARTH + MOVING MOON GRAVITY.
 TARGET LM IS ASSUMED TO COAST WITHOUT MANEUVERS DURING THE PLAN.</p></div>
 <?php endif;?></body></html>
