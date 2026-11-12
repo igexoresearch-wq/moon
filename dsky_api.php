@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/common.php';
+require_once __DIR__.'/dsky_rendezvous.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 if(session_status()!==PHP_SESSION_ACTIVE)session_start();
@@ -65,6 +66,17 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    for($i=1;$i<=4;$i++)if($p['field'.$i.'_label']!==null &&
      ($d['field'.$i]===null||(float)$d['field'.$i]<(float)$p['field'.$i.'_min']||(float)$d['field'.$i]>(float)$p['field'.$i.'_max']))
       throw new DomainException('REQUIRED DATA MISSING');
+   // P32 reserves both engine and attitude control until its scheduled burn finishes.
+   // Do not let a simultaneous DSKY program compete for SPS/RCS actuators.
+   $busy=$conn->prepare("SELECT p.operation FROM dsky_registers r JOIN dsky_programs p
+    ON p.craft_id=r.craft_id AND p.program_no=r.program_no
+    WHERE r.craft_id=? AND r.state IN ('queued','running')");
+   $busy->bind_param('i',$craft);$busy->execute();
+   foreach($busy->get_result()->fetch_all(MYSQLI_ASSOC) as $existing){
+    $kind=(string)$existing['operation'];
+    if($kind==='timed_delta_v' || ($p['operation']==='timed_delta_v' && in_array($kind,['burn_seconds','attitude_target'],true)))
+     throw new DomainException('MANEUVER / ACTUATOR ALREADY OCCUPIED');
+   }
    // Completed registers are reusable; failed or aborted registers require a manual CLEAR.
    $q=$conn->prepare("SELECT register_no FROM dsky_registers WHERE craft_id=? AND state IN ('empty','complete') ORDER BY register_no LIMIT 1 FOR UPDATE");
    $q->bind_param('i',$craft);$q->execute();$slot=$q->get_result()->fetch_assoc();
@@ -73,6 +85,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    $q=$conn->prepare("UPDATE dsky_registers SET program_no=?,field1=?,field2=?,field3=?,field4=?,state='queued',started_tick=NULL,elapsed_ticks=0,message=NULL WHERE craft_id=? AND register_no=? AND state IN ('empty','complete')");
    $q->bind_param('iddddii',$program,$d['field1'],$d['field2'],$d['field3'],$d['field4'],$craft,$num);
    $q->execute();if($q->affected_rows!==1)throw new DomainException('REGISTER OCCUPIED');
+   if($p['operation']==='timed_delta_v'){
+    if(!$conn->query("SHOW TABLES LIKE 'dsky_dv_burns'")->fetch_row())
+     throw new DomainException('INSTALL P32 SCHEMA FIRST');
+    moonDvSchedule($conn,$craft,$num,$d);
+   }
    $q=$conn->prepare('UPDATE dsky_drafts SET confirmed=1 WHERE craft_id=?');$q->bind_param('i',$craft);$q->execute();
   }elseif($action==='clear'){
    if(!is_int($value)||$value<1||$value>5)throw new DomainException('INVALID REGISTER');
@@ -82,6 +99,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    if(in_array($r['state'],['queued','running'],true)){
     $q=$conn->prepare('SELECT operation,config_json FROM dsky_programs WHERE craft_id=? AND program_no=?');
     $program=(int)$r['program_no'];$q->bind_param('ii',$craft,$program);$q->execute();$p=$q->get_result()->fetch_assoc();
+    if($p&&$p['operation']==='timed_delta_v'){
+     moonDskyEngineOff($conn,401);
+     $q=$conn->prepare("UPDATE dsky_dv_burns SET status='ABORTED' WHERE craft_id=? AND register_no=?");
+     $q->bind_param('ii',$craft,$value);$q->execute();
+    }
     if($p&&$p['operation']==='burn_seconds'){
      $cfg=json_decode($p['config_json'],true);
      if(is_array($cfg)){
