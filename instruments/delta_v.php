@@ -14,10 +14,11 @@ $dvId='dv-'.bin2hex(random_bytes(5));
 #<?=htmlspecialchars($dvId)?> .dv-state{font:10px monospace;min-height:28px;margin-top:7px;color:#e3d6b4}
 </style>
 <div class="dv-title">DELTA-V / ACCUMULATOR</div>
-<div class="dv-label">SIGNED AXIAL VELOCITY CHANGE</div>
+<div class="dv-label">CUMULATIVE SINCE MANUAL RESET</div>
 <div class="dv-screen"><span data-reading>+0000.000</span></div>
 <div class="dv-label">METERS / SECOND</div>
 <div class="dv-g">ACCEL <span data-g>---.---</span> G</div>
+<div class="dv-g" data-burn-progress>DSKY BURN: NONE</div>
 <button type="button" data-reset>RESET ZERO</button>
 <div class="dv-state" data-status>WAITING FOR INSTRUMENT</div>
 </div>
@@ -27,7 +28,7 @@ $dvId='dv-'.bin2hex(random_bytes(5));
  if(!panel)return;
  const craft=Number(panel.dataset.craft),url='delta_v_status.php?craft='+craft;
  let token='',busy=false;
- const reading=panel.querySelector('[data-reading]'),g=panel.querySelector('[data-g]'),status=panel.querySelector('[data-status]');
+ const reading=panel.querySelector('[data-reading]'),g=panel.querySelector('[data-g]'),status=panel.querySelector('[data-status]'),burn=panel.querySelector('[data-burn-progress]');
  async function refresh(){
   if(busy)return;
   try{
@@ -39,6 +40,8 @@ $dvId='dv-'.bin2hex(random_bytes(5));
    reading.textContent=(v<0?'-':'+')+Math.abs(v).toFixed(3);
    g.textContent=d.valid_sample?Number(d.axial_g).toFixed(3):'---.---';
    status.textContent=d.status||'WAITING';
+   const active=d.active_dsky_burn;
+   burn.textContent=active?'P'+active.program+' BURN '+Number(active.achieved_mps).toFixed(1)+' / '+Number(active.target_mps).toFixed(1)+' M/S':'DSKY BURN: NONE';
   }catch(e){status.textContent=e.message||'CONNECTION FAILURE';}
  }
  panel.querySelector('[data-reset]').addEventListener('click',async()=>{
