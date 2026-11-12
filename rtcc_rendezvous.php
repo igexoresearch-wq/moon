@@ -42,6 +42,32 @@ function rtccStep(array $s,array $moonBefore,array $moonAfter,float $earthMass,f
  $a1=rtccGravity($p,$moonAfter,$earthMass,$moonMass,$isMoon);
  return ['p'=>$p,'v'=>rtccVec($s['v'],rtccScale(rtccVec($a0,$a1),.5*$dt))];
 }
+/**
+ * Propagate the complete FIDO-estimated state to a whole mission minute
+ * so HHMM engine commands correspond to the actual targeting epoch.
+ * 1-10 second substeps; source snapshot remains untouched.
+ */
+function rtccAdvanceToMet(array $input,int $seconds):array {
+ if($seconds<0||$seconds>240)throw new InvalidArgumentException('Bad MET epoch shift');
+ $o=$input;
+ $earthMass=(float)$o[1]['dry_mass'];$moonMass=(float)$o[2]['dry_mass'];
+ while($seconds>0){
+  $dt=(float)min($seconds,10);
+  $before=rtccState($o[2]);$after=rtccStep($before,$before['p'],$before['p'],$earthMass,$moonMass,$dt,true);
+  foreach([3,6] as $id){
+   $state=rtccStep(rtccState($o[$id]),$before['p'],$after['p'],$earthMass,$moonMass,$dt);
+   foreach(['x','y','z'] as $i=>$axis){
+    $o[$id][$axis]=$state['p'][$i];
+    $o[$id]['delta_'.$axis]=$state['v'][$i];
+   }
+  }
+  foreach(['x','y','z'] as $i=>$axis){
+   $o[2][$axis]=$after['p'][$i];$o[2]['delta_'.$axis]=$after['v'][$i];
+  }
+  $seconds-=(int)$dt;
+ }
+ return $o;
+}
 function rtccOutsideBodies(array $p,array $moon,float $earthRadius,float $moonRadius,float $craftRadius=0.):bool {
  return rtccNorm($p)>$earthRadius+$craftRadius && rtccNorm(rtccSub($p,$moon))>$moonRadius+$craftRadius;
 }
