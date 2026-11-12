@@ -1,7 +1,7 @@
 -- Install after star_alignment_schema.sql and dsky_schema.sql.
 -- Preserve current programs and controls. No burn is queued on installation.
 ALTER TABLE dsky_programs MODIFY operation
- ENUM('burn_seconds','attitude_target','platform_align','timed_delta_v') NOT NULL;
+ ENUM('burn_seconds','attitude_target','platform_align','timed_delta_v','timed_rcs_dv') NOT NULL;
 CREATE TABLE IF NOT EXISTS dsky_dv_burns (
  craft_id INT UNSIGNED NOT NULL,
  register_no TINYINT UNSIGNED NOT NULL,
@@ -28,4 +28,20 @@ ON DUPLICATE KEY UPDATE title=VALUES(title),operation=VALUES(operation),
  field2_max=VALUES(field2_max),
  field3_label=VALUES(field3_label),field3_min=VALUES(field3_min),
  field3_max=VALUES(field3_max),
+ field4_label=VALUES(field4_label),field4_min=VALUES(field4_min),field4_max=VALUES(field4_max);
+
+-- P33 uses SM RCS forward translation instead of the SPS; same four registers.
+INSERT INTO dsky_programs(craft_id,program_no,title,operation,config_json,
+ field1_label,field1_min,field1_max,
+ field2_label,field2_min,field2_max,
+ field3_label,field3_min,field3_max,
+ field4_label,field4_min,field4_max)
+VALUES(3,33,'RCS TIG DELTA-V','timed_rcs_dv',JSON_OBJECT('rcs_system',4,'scale',10),
+ 'MET HHMM',0,9959,'DV 0.1MPS',1,9999,'PITCH 0.1',0,3599,'YAW 0.1',0,3599)
+ON DUPLICATE KEY UPDATE title=VALUES(title),operation=VALUES(operation),
+ config_json=VALUES(config_json),field1_label=VALUES(field1_label),
+ field1_min=VALUES(field1_min),field1_max=VALUES(field1_max),
+ field2_label=VALUES(field2_label),field2_min=VALUES(field2_min),
+ field2_max=VALUES(field2_max),field3_label=VALUES(field3_label),
+ field3_min=VALUES(field3_min),field3_max=VALUES(field3_max),
  field4_label=VALUES(field4_label),field4_min=VALUES(field4_min),field4_max=VALUES(field4_max);
