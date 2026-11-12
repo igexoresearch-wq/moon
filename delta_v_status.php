@@ -36,6 +36,20 @@ try{
  $q->bind_param('i',$craft);$q->execute();$g=$q->get_result()->fetch_assoc();
  $clock=$conn->query('SELECT tick FROM sim_clock WHERE id=1')->fetch_assoc();
  $tick=$clock===null?null:(int)$clock['tick'];
+ $activeBurn=null;
+ if($conn->query("SHOW TABLES LIKE 'dsky_dv_burns'")->fetch_row()){
+  $burn=$conn->prepare("SELECT r.program_no,r.register_no,r.field2,m.achieved_mps,m.status
+   FROM dsky_registers r JOIN dsky_dv_burns m
+   ON m.craft_id=r.craft_id AND m.register_no=r.register_no
+   WHERE r.craft_id=? AND r.program_no IN (32,33) AND r.state='running'
+   ORDER BY r.register_no LIMIT 1");
+  $burn->bind_param('i',$craft);$burn->execute();$row=$burn->get_result()->fetch_assoc();
+  if($row){
+   $activeBurn=['program'=>(int)$row['program_no'],'register'=>(int)$row['register_no'],
+    'achieved_mps'=>(float)$row['achieved_mps'],'target_mps'=>(float)$row['field2']/10.,
+    'status'=>(string)$row['status']];
+  }
+ }
  $valid=$g!==null&&(int)$g['valid']===1&&$tick!==null
   &&$g['sample_tick']!==null&&$tick-(int)$g['sample_tick']<=1;
  echo json_encode([
@@ -44,6 +58,7 @@ try{
   'status'=>$value['status'],
   'axial_g'=>$valid?(float)$g['g_forward']:null,
   'valid_sample'=>$valid,
+  'active_dsky_burn'=>$activeBurn,
   'csrf'=>$_SESSION['moon_delta_v_csrf']
  ],JSON_THROW_ON_ERROR);
 }catch(Throwable $e){
