@@ -20,7 +20,7 @@ function fidoGroundSnapshot(mysqli $db):array {
  foreach([1,2] as $id)if(!isset($body[$id]))throw new DomainException('FIDO CELESTIAL ESTIMATE NOT INITIALIZED');
  $tick=(int)$state[3]['last_tick'];
  if($tick!==(int)$state[6]['last_tick'] || $tick!==(int)$body[2]['last_tick']
-   || $tick!==(int)$body[1]['last_tick'] && (int)$body[1]['last_tick']>(int)$body[2]['last_tick'])
+   || (int)$body[1]['last_tick']>$tick)
    throw new DomainException('FIDO ESTIMATES NOT AT MATCHING EPOCH');
  // Earth is stationary in this project's physical model. The stored Earth
  // reference epoch may be the initial seed tick; its position remains fixed.
