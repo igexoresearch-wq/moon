@@ -100,7 +100,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $q=$conn->prepare('SELECT operation,config_json FROM dsky_programs WHERE craft_id=? AND program_no=?');
     $program=(int)$r['program_no'];$q->bind_param('ii',$craft,$program);$q->execute();$p=$q->get_result()->fetch_assoc();
     if($p&&$p['operation']==='timed_delta_v'){
-     moonDskyEngineOff($conn,401);
+     $conn->query('UPDATE propulsion_engines SET command_on=0,firing=0 WHERE id=401');
      $q=$conn->prepare("UPDATE dsky_dv_burns SET status='ABORTED' WHERE craft_id=? AND register_no=?");
      $q->bind_param('ii',$craft,$value);$q->execute();
     }
