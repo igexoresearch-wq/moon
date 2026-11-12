@@ -50,6 +50,22 @@ function moonDvBeforePhysics(mysqli $db,int $craft,int $slot,array $r,int $tick,
   if((int)$m['ignited_tick']>$tick || $tick-$target>2400){
    moonDvFail($db,$craft,$slot,'BURN TIMEOUT');return;
   }
+  if(!$rcsMode){
+   // Protect even an EXISTING overlong burn immediately after deployment,
+   // before allowing the next physics second. Compute elapsed firing time
+   // from the persisted ignition tick, not a newly-added counter.
+   try{
+    $model=moonDvSpsMassModel($db);
+    $elapsed=max(0,$tick-(int)$m['ignited_tick']);
+    if(moonDvSpsWatchdogExceeded((float)$r['field2']/10.,
+       $model['thrust_n'],$model['mass_kg'],$elapsed)){
+     moonDvFail($db,$craft,$slot,'SPS WATCHDOG - ENGINE STOPPED');return;
+    }
+   }catch(Throwable $watchdogError){
+    error_log('Moon SPS preburn watchdog: '.$watchdogError->getMessage());
+    moonDvFail($db,$craft,$slot,'SPS SAFETY MODEL UNAVAILABLE');return;
+   }
+  }
   // Continuous IMU-referenced attitude hold throughout the burn, using
   // real RCS jets. Unlike the pre-ignition guard, temporary trim
   // corrections do not cancel an already firing maneuver.
@@ -151,7 +167,7 @@ function moonDvAfterSensors(mysqli $db,int $tick):void {
     $count=$db->prepare('SELECT elapsed_ticks FROM dsky_registers WHERE craft_id=? AND register_no=? FOR UPDATE');
     $count->bind_param('ii',$craft,$slot);$count->execute();
     $record=$count->get_result()->fetch_assoc();
-    $ticks=(int)($record['elapsed_ticks']??0)+1;
+    $ticks=max((int)($record['elapsed_ticks']??0)+1, $tick-(int)$r['ignited_tick']+1);
     $modelDv=$ticks*$acceleration;
     if(!moonDvSpsSamplePlausible($measured,$acceleration)){
      moonDvFail($db,$craft,$slot,'SPS DELTA-V SENSOR DISAGREES');continue;
