@@ -14,7 +14,8 @@ $conn->query("INSERT INTO fido_displays(display_key,button_label,page_file,sort_
  ('summary','001 TRAJECTORY','summary.php',10,1,1),
  ('orbit','002 ORBITAL DATA','orbit.php',20,1,0),
  ('state','003 POWERED FLIGHT','state.php',30,1,0),
- ('rendezvous','004 RENDEZVOUS','rendezvous.php',40,1,0)
+ ('rendezvous','004 RENDEZVOUS','rendezvous.php',40,1,0),
+ ('navigation','005 GROUND NAV','navigation.php',50,1,0)
  ON DUPLICATE KEY UPDATE button_label=VALUES(button_label),page_file=VALUES(page_file),sort_order=VALUES(sort_order),is_default=VALUES(is_default)");
 $displays=$conn->query("SELECT display_key,button_label,page_file,is_default FROM fido_displays WHERE enabled=1 ORDER BY sort_order,display_key")->fetch_all(MYSQLI_ASSOC);
 $allowed=[];
