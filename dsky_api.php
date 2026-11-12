@@ -74,7 +74,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    $busy->bind_param('i',$craft);$busy->execute();
    foreach($busy->get_result()->fetch_all(MYSQLI_ASSOC) as $existing){
     $kind=(string)$existing['operation'];
-    if($kind==='timed_delta_v' || ($p['operation']==='timed_delta_v' && in_array($kind,['burn_seconds','attitude_target'],true)))
+    if(in_array($kind,['timed_delta_v','timed_rcs_dv'],true) || (in_array($p['operation'],['timed_delta_v','timed_rcs_dv'],true) && in_array($kind,['burn_seconds','attitude_target'],true)))
      throw new DomainException('MANEUVER / ACTUATOR ALREADY OCCUPIED');
    }
    // Completed registers are reusable; failed or aborted registers require a manual CLEAR.
@@ -85,7 +85,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    $q=$conn->prepare("UPDATE dsky_registers SET program_no=?,field1=?,field2=?,field3=?,field4=?,state='queued',started_tick=NULL,elapsed_ticks=0,message=NULL WHERE craft_id=? AND register_no=? AND state IN ('empty','complete')");
    $q->bind_param('iddddii',$program,$d['field1'],$d['field2'],$d['field3'],$d['field4'],$craft,$num);
    $q->execute();if($q->affected_rows!==1)throw new DomainException('REGISTER OCCUPIED');
-   if($p['operation']==='timed_delta_v'){
+   if(in_array($p['operation'],['timed_delta_v','timed_rcs_dv'],true)){
     if(!$conn->query("SHOW TABLES LIKE 'dsky_dv_burns'")->fetch_row())
      throw new DomainException('INSTALL P32 SCHEMA FIRST');
     moonDvSchedule($conn,$craft,$num,$d);
@@ -99,8 +99,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    if(in_array($r['state'],['queued','running'],true)){
     $q=$conn->prepare('SELECT operation,config_json FROM dsky_programs WHERE craft_id=? AND program_no=?');
     $program=(int)$r['program_no'];$q->bind_param('ii',$craft,$program);$q->execute();$p=$q->get_result()->fetch_assoc();
-    if($p&&$p['operation']==='timed_delta_v'){
-     $conn->query('UPDATE propulsion_engines SET command_on=0,firing=0 WHERE id=401');
+    if($p&&in_array($p['operation'],['timed_delta_v','timed_rcs_dv'],true)){
+     if($p['operation']==='timed_delta_v')$conn->query('UPDATE propulsion_engines SET command_on=0,firing=0 WHERE id=401');
      $q=$conn->prepare("UPDATE dsky_dv_burns SET status='ABORTED' WHERE craft_id=? AND register_no=?");
      $q->bind_param('ii',$craft,$value);$q->execute();
     }
