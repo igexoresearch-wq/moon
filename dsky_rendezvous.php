@@ -43,7 +43,7 @@ function moonDvFail(mysqli $db,int $craft,int $slot,string $reason):void {
 function moonDvBeforePhysics(mysqli $db,int $craft,int $slot,array $r,int $tick,bool $rcsMode=false):void {
  $q=$db->prepare('SELECT * FROM dsky_dv_burns WHERE craft_id=? AND register_no=? FOR UPDATE');
  $q->bind_param('ii',$craft,$slot);$q->execute();$m=$q->get_result()->fetch_assoc();
- if(!$m){moonDvFail($db,$craft,$slot,'BURN SCHEDULE MISSING');return;}
+ if(!$m){moonDvFail($db,$craft,$slot,'SCHEDULE ABSENT - UPDATE DSKY API');return;}
  $target=(int)$m['target_tick'];
  if($m['ignited_tick']!==null){
   if((int)$m['ignited_tick']>$tick || $tick-$target>2400){
