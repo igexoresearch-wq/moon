@@ -22,6 +22,10 @@ try{
  $snapshot=fidoGroundSnapshot($conn);
  $estimates=$snapshot['estimates'];
  $epoch=$snapshot['tick'];
+ $clock=$conn->query('SELECT tick FROM sim_clock WHERE id=1')->fetch_assoc();
+ if(!$clock)throw new DomainException('MISSION CLOCK UNAVAILABLE');
+ $now=(int)$clock['tick'];
+ if($now<$epoch||$now-$epoch>5)throw new DomainException('FIDO GROUND ESTIMATE STALE - WAIT FOR TRACKING UPDATE');
  $conn->commit();
  // Guarantee absolute MET times at minute resolution: never move an
  // impulsive solver ignition to another time AFTER computing its trajectory.
