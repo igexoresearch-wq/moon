@@ -15,7 +15,7 @@ if(!preg_match('/\A[a-z][a-z0-9_]*\.php\z/i',$file)||str_starts_with($file,'_')|
 try {
  $conn->begin_transaction(MYSQLI_TRANS_START_READ_ONLY);
  $ground=fidoGroundSnapshot($conn);
- $estimates=$ground['objects'];$groundTick=$ground['tick'];
+ $estimates=$ground['estimates'];$groundTick=$ground['tick'];
  $conn->commit();
  $groundError=null;
 } catch(Throwable $exception) {
