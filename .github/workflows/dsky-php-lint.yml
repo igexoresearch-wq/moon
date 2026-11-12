@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - "dsky_*.php"
+      - "delta_v_status.php"
+      - "instruments/delta_v.php"
       - "instruments/dsky.php"
       - "execute.php"
       - "met_clock.php"
@@ -44,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check PHP syntax
         run: |
-          for file in dsky_runtime.php dsky_rcs.php dsky_api.php instruments/dsky.php delta_v.php delta_v_status.php instruments/delta_v.php rtcc_rendezvous.php rtcc_solution.php star_alignment.php star_catalog.php instruments/sextant.php instruments/window.php tests/star_alignment_test.php fido_pages/rendezvous.php tests/rtcc_rendezvous_test.php execute.php physics.php navigation.php tests/navigation_test.php fido_navigation.php fido_pages/navigation.php fido_console.php tests/fido_navigation_test.php fido_ground.php fido_page.php fido_pages/summary.php fido_pages/orbit.php fido_pages/state.php tests/fido_ground_source_test.php dsky_rendezvous.php dsky_rcs_translate.php rtcc_maneuver.php tests/dsky_rendezvous_test.php met_clock.php met_status.php instruments/met_clock.php tests/met_clock_test.php; do
+          for file in dsky_runtime.php dsky_rcs.php dsky_api.php instruments/dsky.php delta_v.php delta_v_status.php instruments/delta_v.php rtcc_rendezvous.php rtcc_solution.php star_alignment.php star_catalog.php instruments/sextant.php instruments/window.php tests/star_alignment_test.php fido_pages/rendezvous.php tests/rtcc_rendezvous_test.php execute.php physics.php navigation.php tests/navigation_test.php fido_navigation.php fido_pages/navigation.php fido_console.php tests/fido_navigation_test.php fido_ground.php fido_page.php fido_pages/summary.php fido_pages/orbit.php fido_pages/state.php tests/fido_ground_source_test.php dsky_rendezvous.php dsky_rcs_translate.php rtcc_maneuver.php tests/dsky_rendezvous_test.php met_clock.php met_status.php instruments/met_clock.php tests/met_clock_test.php dsky_dv_safety.php; do
             php -l "$file" || exit 1
           done
       - name: Rendezvous engine regression tests
