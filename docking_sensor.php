@@ -175,7 +175,11 @@ function moonDockingTick(mysqli $db,array $before,int $tick):void {
  $r=(float)$cm['radius_length']+(float)$lm['radius_length'];
  $g=moonDockGeometry($cm,$lm);
  $swept=moonDockSweptDistance($before[3],$before[6],$cm,$lm);
- $contact=$swept<=$r+1.0;
+ // Ports may mate with up to 1 m gap; non-docking collision is strictly
+ // hull-to-hull, not a phantom contact one meter out.
+ $hullContact=$swept<=$r;
+ $portContact=$g['dockable']&&$g['range_m']>=$r-0.5&&$g['range_m']<=$r+1.;
+ $contact=$hullContact||$portContact;
  if(!$contact){
   if((int)$state['touching']===1||(int)$state['docked']===1)$db->query('UPDATE docking_contact SET touching=0,docked=0 WHERE id=1');
   return;
@@ -190,7 +194,7 @@ function moonDockingTick(mysqli $db,array $before,int $tick):void {
  }
  // Check geometrical mating at END of tick rather than allowing an off-axis
  // collision to snap the craft into place.
- $dock=$g['dockable']&&$g['range_m']>=$r-0.5&&$g['range_m']<=$r+1.;
+ $dock=$portContact;
  $event=$dock?'DOCKED':'CONTACT';
  $count=$dock?0:moonDockDamageCount($g['relative_speed_mps']);
  $damageCm=$dock?0:moonDockFailComponents($db,3,$count,$tick,$g['relative_speed_mps']);
