@@ -27,7 +27,7 @@ try {
 ?><!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="5">
 <style>
-*{box-sizing:border-box}body{width:1000px;height:800px;overflow:auto;margin:0;padding:24px 28px;background:#111b20;color:#d0dfdf;font:17px 'Courier New',monospace}
+*{box-sizing:border-box}body{width:1300px;min-height:800px;overflow:auto;margin:0;padding:24px 28px;background:#111b20;color:#d0dfdf;font:17px 'Courier New',monospace}
 h2{color:#e3f2e8;border-bottom:1px solid #647477;padding-bottom:10px;letter-spacing:2px;font-size:19px;margin:0 0 20px}
 h3{color:#a8d3e1;font-size:15px;letter-spacing:1px;margin:0 0 11px;border-bottom:1px solid #32516a;padding-bottom:5px}
 .fd-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 35px}
