@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/../fido_los.php';
 // 005 displays FIDO's own estimated state only; never reads true physics
 // or the spacecraft's separate onboard navigation.
 ?>
@@ -16,6 +17,7 @@
 <?php fidoRows([
  'SOLUTION TICK'=>(string)$groundTick,
  'STATUS'=>(string)$g['status'],
+ 'EARTH LINK ESTIMATE'=>fidoEstimatedLunarOccultation($g,$estimates[1],$estimates[2])?'LUNAR OCCULTATION':'LINE OF SIGHT',
  'LAST TRACKING FIX'=>$g['last_tracking_tick']===null?'AWAITING':(string)$g['last_tracking_tick'],
  'REFERENCE BODY'=>(string)$body['name'],
  'ALTITUDE KM'=>fidoN($orb['alt'],3),
