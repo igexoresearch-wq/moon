@@ -99,6 +99,57 @@ function moonDockFailComponents(mysqli $db,int $craft,int $count,int $tick,float
  }
  return $done;
 }
+/**
+ * Resolve an undocked hull impact: find the first swept-sphere contact,
+ * put craft at the contact plane, and apply a low-restition normal impulse.
+ * Prevents high-speed fly-through; does not alter propellant or orientation.
+ * This is a simplified rigid-body translation model (no angular impulse).
+ */
+function moonDockResolveImpact(mysqli $db,array $oldCm,array $oldLm,array $cm,array $lm):void {
+ $a=moonDockMinus(moonDockPos($oldLm),moonDockPos($oldCm));
+ $b=moonDockMinus(moonDockPos($lm),moonDockPos($cm));
+ $v=moonDockMinus($b,$a);
+ $radius=(float)$cm['radius_length']+(float)$lm['radius_length'];
+ $aa=moonDockDot($v,$v);$bb=2.*moonDockDot($a,$v);$cc=moonDockDot($a,$a)-$radius*$radius;
+ $t=0.;
+ if($aa>1e-12&&$cc>0.){
+  $discriminant=$bb*$bb-4.*$aa*$cc;
+  if($discriminant>=0.)$t=max(0.,min(1.,(-$bb-sqrt($discriminant))/(2.*$aa)));
+  else $t=1.;
+ }
+ $c0=moonDockPos($oldCm);$c1=moonDockPos($cm);
+ $l0=moonDockPos($oldLm);$l1=moonDockPos($lm);
+ $cp=[];$lp=[];
+ for($k=0;$k<3;$k++){
+  $cp[$k]=$c0[$k]+$t*($c1[$k]-$c0[$k]);
+  $lp[$k]=$l0[$k]+$t*($l1[$k]-$l0[$k]);
+ }
+ $normal=moonDockMinus($lp,$cp);$dist=moonDockVec($normal);
+ if($dist<1e-9){$normal=moonDockVec($a)>1e-9?$a:[1.,0.,0.];$dist=moonDockVec($normal);}
+ $normal=array_map(static fn($n)=>$n/$dist,$normal);
+ $vcm=moonDockVel($cm);$vlm=moonDockVel($lm);
+ $rv=moonDockMinus($vlm,$vcm);
+ $normalSpeed=moonDockDot($rv,$normal);
+ if($normalSpeed<0.){
+  $mcm=max(1.,(float)$cm['dry_mass']+6100.);
+  $mlm=max(1.,(float)$lm['dry_mass']);
+  $restitution=.05;
+  $impulse=-(1.+$restitution)*$normalSpeed/(1./$mcm+1./$mlm);
+  for($k=0;$k<3;$k++){
+   $vcm[$k]-=$impulse/$mcm*$normal[$k];
+   $vlm[$k]+=$impulse/$mlm*$normal[$k];
+  }
+ }
+ // When already penetrating at beginning of tick, separate conservatively.
+ $correction=max(0.,$radius+.01-$dist);
+ for($k=0;$k<3;$k++)$lp[$k]+=$correction*$normal[$k];
+ $update=$db->prepare('UPDATE objects SET x=?,y=?,z=?,delta_x=?,delta_y=?,delta_z=? WHERE id=?');
+ foreach([[3,$cp,$vcm],[6,$lp,$vlm]] as [$id,$p,$vel]){
+  $update->bind_param('ddddddi',$p[0],$p[1],$p[2],$vel[0],$vel[1],$vel[2],$id);
+  $update->execute();
+ }
+}
+
 /** Called AFTER the 1s physics integration in the SAME transaction. */
 function moonDockingTick(mysqli $db,array $before,int $tick):void {
  if(!isset($before[3],$before[6]))return;
@@ -123,7 +174,7 @@ function moonDockingTick(mysqli $db,array $before,int $tick):void {
  $swept=moonDockSweptDistance($before[3],$before[6],$cm,$lm);
  $contact=$swept<=$r+1.0;
  if(!$contact){
-  if((int)$state['touching']===1)$db->query('UPDATE docking_contact SET touching=0 WHERE id=1');
+  if((int)$state['touching']===1||(int)$state['docked']===1)$db->query('UPDATE docking_contact SET touching=0,docked=0 WHERE id=1');
   return;
  }
  if((int)$state['touching']===1)return;
@@ -134,6 +185,9 @@ function moonDockingTick(mysqli $db,array $before,int $tick):void {
  $count=$dock?0:moonDockDamageCount($g['relative_speed_mps']);
  $damageCm=$dock?0:moonDockFailComponents($db,3,$count,$tick,$g['relative_speed_mps']);
  $damageLm=$dock?0:moonDockFailComponents($db,6,$count,$tick,$g['relative_speed_mps']);
+ if(!$dock){
+  moonDockResolveImpact($db,$before[3],$before[6],$cm,$lm);
+ }
  if($dock){
   // LM becomes a child of CSM at a forward-facing mount. A negative
   // offset is intentional: child offset is measured behind CSM +X.
