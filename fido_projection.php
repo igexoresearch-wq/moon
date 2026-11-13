@@ -112,11 +112,11 @@ function fidoMapSvg(array $estimates,array $paths,int $centerBody=1,int $width=1
  foreach($draw as $id=>$list){
   $pts=[];foreach($list as $q){[$x,$y]=$map($q);$pts[]=round($x,2).','.round($y,2);}
   if(count($pts)<2)continue;
-  $color=$id===3?'#eac88b':'#84d9cc';$dash=$id===3?'12 5':'2 7';
+  $color=$id===3?'#eac88b':($id===99?'#f0f0f0':'#84d9cc');$dash=$id===3?'12 5':($id===99?'none':'2 7');
   $svg.='<polyline points="'.$esc(implode(' ',$pts)).'" fill="none" stroke="'.$color.'" stroke-width="1.5" stroke-dasharray="'.$dash.'"/>';
   [$x,$y]=$map($list[0]);
   $svg.='<circle cx="'.round($x,2).'" cy="'.round($y,2).'" r="4" fill="'.$color.'"/>';
-  $svg.='<text x="'.round($x+10,2).'" y="'.round($y-6,2).'" fill="'.$color.'" font-size="12" font-family="monospace">'.($id===3?'CSM':'LM').'</text>';
+  $svg.='<text x="'.round($x+10,2).'" y="'.round($y-6,2).'" fill="'.$color.'" font-size="12" font-family="monospace">'.($id===3?'PLAN CSM':($id===99?'TRACK CSM':'PLAN LM')).'</text>';
  }
  $kmPer100px=100./$scale/1000.;
  $svg.='<text x="18" y="'.($height-16).'" fill="#b2c8d3" font-size="13" font-family="monospace">100 px = '.number_format($kmPer100px,1).' km / 2D ESTIMATE PROJECTION</text></svg>';
