@@ -32,9 +32,17 @@ try{
  $q=$conn->prepare('INSERT INTO fido_saved_solutions(estimate_tick,planning_tick,label,snapshot_json,plan_json,prediction_json) VALUES(?,?,?,?,?,?)');
  $q->bind_param('iissss',$epoch,$planning,$label,$snapshot,$planJson,$predicted);$q->execute();
  $id=(int)$conn->insert_id;
+ if($id<1)throw new RuntimeException('Saved maneuver returned invalid ID');
+ unset($_SESSION['moon_rtcc_candidates']);
+ session_write_close();
  header('Location: fido_console.php?display=flight_compare&solution='.$id,true,303);
+ exit;
 }catch(Throwable $e){
  error_log('FIDO saved plan: '.$e->getMessage());
- http_response_code(503);
- echo htmlspecialchars($e instanceof DomainException?$e->getMessage():'SOLUTION SAVE UNAVAILABLE',ENT_QUOTES);
+ http_response_code($e instanceof DomainException?422:503);
+ header('Content-Type: text/html; charset=utf-8');
+ $message=$e instanceof DomainException?$e->getMessage():'SOLUTION SAVE FAILED. CHECK PHP ERROR LOG FOR FIDO saved plan.';
+ echo '<!doctype html><meta charset="utf-8"><title>RTCC Save Failure</title><style>body{background:#111b20;color:#e1e9de;font:16px monospace;padding:30px}a{color:#a5d8da}</style>';
+ echo '<h1>RTCC / SAVE FAILED</h1><p>'.htmlspecialchars($message,ENT_QUOTES).'</p>';
+ echo '<p><a href="rtcc_solution.php">RETURN TO RTCC</a></p>';
 }
