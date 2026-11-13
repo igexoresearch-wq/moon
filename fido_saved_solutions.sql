@@ -7,5 +7,6 @@ CREATE TABLE IF NOT EXISTS fido_saved_solutions (
  label VARCHAR(90) NOT NULL,
  snapshot_json LONGTEXT NOT NULL,
  plan_json LONGTEXT NOT NULL,
+ prediction_json LONGTEXT NOT NULL,
  INDEX fido_saved_solution_epoch(estimate_tick)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
