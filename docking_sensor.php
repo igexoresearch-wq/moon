@@ -60,6 +60,10 @@ function moonDockInstall(mysqli $db):void {
   last_damage_lm SMALLINT UNSIGNED NOT NULL DEFAULT 0
  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
  $db->query("INSERT IGNORE INTO docking_contact(id) VALUES(1)");
+ // Separate docking probe instruments can fail independently in collision.
+ $db->query("INSERT IGNORE INTO reliability_components(component_key,component_name,spacecraft_id,master,alarm_name,state)
+ VALUES ('cm_docking_probe','CM Docking Probe',3,1,'DOCK PROBE',1),
+ ('lm_docking_probe','LM Docking Probe',6,1,'DOCK PROBE',1)");
  $db->query("CREATE TABLE IF NOT EXISTS docking_events(
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   sim_tick BIGINT UNSIGNED NOT NULL,
