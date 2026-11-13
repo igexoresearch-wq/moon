@@ -5,6 +5,8 @@ require_once __DIR__.'/rtcc_rendezvous.php';
 require_once __DIR__.'/fido_ground.php';
 require_once __DIR__.'/rtcc_maneuver.php';
 header('Cache-Control: no-store');
+if(PHP_SAPI!=='cli'&&session_status()!==PHP_SESSION_ACTIVE)session_start();
+if(empty($_SESSION['moon_rtcc_save_csrf']))$_SESSION['moon_rtcc_save_csrf']=bin2hex(random_bytes(24));
 $wantJson=($_GET['format']??'')==='json';
 $profile=(string)($_GET['search']??'standard');
 $profiles=[
@@ -77,6 +79,16 @@ try{
  }
  unset($plan);
  $result['fuel_assumption']='Nominal bare CM+SM dry mass 11660 kg plus current SPS propellant; excludes attached LM and other stages';
+ // Snapshot exactly the candidate the operator saw (including the source
+ // FIDO-only ground estimate) so saved comparisons cannot silently re-solve
+ // against a later epoch. Stored in this operator's PHP session only.
+ if(!$wantJson){
+  $_SESSION['moon_rtcc_candidates']=[
+   'estimate_tick'=>$epoch,'planning_tick'=>$planningTick,
+   'snapshot'=>$planning,'plans'=>$result['solutions'],
+   'saved_at'=>time()
+  ];
+ }
  if($wantJson){
   header('Content-Type: application/json; charset=utf-8');
   echo json_encode($result,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT);exit;
@@ -176,6 +188,12 @@ PREDICTED NOMINAL POSITION MISS <?=rtccFmt($top['miss_m'],2)?> M</p>
 <?php foreach($result['solutions'] as $index=>$plan): ?>
 <div class="panel">
 <h2>OPTION <?=($index+1)?> / TWO MANEUVERS</h2>
+<form method="post" action="rtcc_save.php" style="display:flex;gap:8px;align-items:center;margin:8px 0 16px">
+<input type="hidden" name="csrf" value="<?=htmlspecialchars((string)$_SESSION['moon_rtcc_save_csrf'],ENT_QUOTES)?>">
+<input type="hidden" name="option" value="<?=$index?>">
+<button type="submit">SAVE THIS SOLUTION FOR FLIGHT COMPARISON</button>
+<small>Frozen FIDO estimate and ideal two-impulse prediction</small>
+</form>
 <?php foreach(['burn1'=>'FIRST BURN','burn2'=>'SECOND BURN'] as $key=>$label):
  $burn=$plan[$key];?>
 <h2><?=$label?> / MET <?=htmlspecialchars($burn['met'])?> / PROGRAM <?=$burn['program']?> (<?=$burn['engine']?>)</h2>
