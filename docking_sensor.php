@@ -64,6 +64,9 @@ function moonDockInstall(mysqli $db):void {
  $db->query("INSERT IGNORE INTO reliability_components(component_key,component_name,spacecraft_id,master,alarm_name,state)
  VALUES ('cm_docking_probe','CM Docking Probe',3,1,'DOCK PROBE',1),
  ('lm_docking_probe','LM Docking Probe',6,1,'DOCK PROBE',1)");
+ $db->query("INSERT IGNORE INTO console_instruments(console_id,file_name,pos_x,pos_y)
+ VALUES ('cmc','docking_sensor.php',1760,270),('cmp','docking_sensor.php',1760,270),
+ ('lmc','docking_sensor.php',1760,270),('lmp','docking_sensor.php',1760,270)");
  $db->query("CREATE TABLE IF NOT EXISTS docking_events(
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   sim_tick BIGINT UNSIGNED NOT NULL,
@@ -160,7 +163,7 @@ function moonDockingTick(mysqli $db,array $before,int $tick):void {
  $cm=$now[3];$lm=$now[6];
  $state=$db->query('SELECT * FROM docking_contact WHERE id=1 FOR UPDATE')->fetch_assoc();
  if((int)$cm['active']!==1||(int)$lm['active']!==1||$cm['land']!==null||$lm['land']!==null){
-  $db->query("UPDATE docking_contact SET touching=0 WHERE id=1");return;
+  $db->query("UPDATE docking_contact SET touching=0,docked=0 WHERE id=1");return;
  }
  $attached=(int)$lm['dependent']===1&&(int)($lm['dependency']??0)===3;
  if($attached){
