@@ -25,7 +25,9 @@ try {
  $estimates=[];
 }
 ?><!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<?php if($key!=='flight_compare'):?>
 <meta http-equiv="refresh" content="5">
+<?php endif;?>
 <style>
 *{box-sizing:border-box}body{width:1300px;min-height:800px;overflow:auto;margin:0;padding:24px 28px;background:#111b20;color:#d0dfdf;font:17px 'Courier New',monospace}
 h2{color:#e3f2e8;border-bottom:1px solid #647477;padding-bottom:10px;letter-spacing:2px;font-size:19px;margin:0 0 20px}
