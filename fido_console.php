@@ -33,6 +33,8 @@ foreach($allowed as $key=>$entry)if((int)$entry['is_default']===1){$default=$key
 if(!isset($allowed[$default]))$default=(string)(array_key_first($allowed)??'');
 $chosen=(string)($_GET['display']??$default);
 if(!isset($allowed[$chosen]))$chosen=$default;
+$savedSolution=($chosen==='flight_compare')?max(0,(int)($_GET['solution']??0)):0;
+$screenQuery='display='.urlencode($chosen).($savedSolution?'&solution='.$savedSolution:'');
 ?>
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FIDO / Flight Dynamics</title>
@@ -53,7 +55,7 @@ a{color:inherit}.top{background:#313932;padding:10px 16px}.work{display:flex;ali
 <?php endforeach;?>
 <p>RTCC DISPLAY UNIT<br>SELECT DISPLAY FORMAT</p>
 </nav>
-<div class="housing"><iframe class="screen" id="fido-screen" title="Flight dynamics display" src="fido_page.php?display=<?=urlencode($chosen)?>"></iframe></div>
+<div class="housing"><iframe class="screen" id="fido-screen" title="Flight dynamics display" src="fido_page.php?<?=htmlspecialchars($screenQuery,ENT_QUOTES)?>"></iframe></div>
 </main>
 <script>
 (()=>{
