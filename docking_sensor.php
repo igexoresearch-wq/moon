@@ -177,7 +177,14 @@ function moonDockingTick(mysqli $db,array $before,int $tick):void {
   if((int)$state['touching']===1||(int)$state['docked']===1)$db->query('UPDATE docking_contact SET touching=0,docked=0 WHERE id=1');
   return;
  }
- if((int)$state['touching']===1)return;
+ if((int)$state['touching']===1){
+  // A contact already logged should not roll new failures, but the hull
+  // still collides physically on successive ticks while pressing together.
+  if($g['range_m']<$r || $g['closing_mps']>0.){
+   moonDockResolveImpact($db,$before[3],$before[6],$cm,$lm);
+  }
+  return;
+ }
  // Check geometrical mating at END of tick rather than allowing an off-axis
  // collision to snap the craft into place.
  $dock=$g['dockable']&&$g['range_m']>=$r-0.5&&$g['range_m']<=$r+1.;
