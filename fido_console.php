@@ -15,7 +15,10 @@ $conn->query("INSERT INTO fido_displays(display_key,button_label,page_file,sort_
  ('orbit','002 ORBITAL DATA','orbit.php',20,1,0),
  ('state','003 POWERED FLIGHT','state.php',30,1,0),
  ('rendezvous','004 RENDEZVOUS','rendezvous.php',40,1,0),
- ('navigation','005 GROUND NAV','navigation.php',50,1,0)
+ ('navigation','005 GROUND NAV','navigation.php',50,1,0),
+ ('trajectory_map','006 ORBIT MAP','trajectory_map.php',60,1,0),
+ ('proximity_map','007 PROXIMITY','proximity_map.php',70,1,0),
+ ('flight_compare','008 FLIGHT COMPARE','flight_compare.php',80,1,0)
  ON DUPLICATE KEY UPDATE button_label=VALUES(button_label),page_file=VALUES(page_file),sort_order=VALUES(sort_order),is_default=VALUES(is_default)");
 $displays=$conn->query("SELECT display_key,button_label,page_file,is_default FROM fido_displays WHERE enabled=1 ORDER BY sort_order,display_key")->fetch_all(MYSQLI_ASSOC);
 $allowed=[];
@@ -41,7 +44,7 @@ a{color:inherit}.top{background:#313932;padding:10px 16px}.work{display:flex;ali
 .controls button{display:block;width:100%;margin:0 0 9px;padding:14px 7px;background:#838b80;border:3px outset #b1b6ab;color:#151c17;text-align:left;font:700 12px monospace;cursor:pointer}
 .controls button.active{background:#cbc9aa;border-style:inset}.controls p{font:10px monospace;color:#b9c9bd;line-height:1.6;margin-top:20px}
 .housing{border:10px ridge #3b443e;background:#121d28;padding:5px;flex:none}
-.screen{display:block;width:1000px;height:800px;border:0;background:#071924}
+.screen{display:block;width:1300px;height:800px;border:0;background:#071924}
 </style></head><body>
 <header class="top"><span>FLIGHT DYNAMICS / MISSION CONTROL · <a href="index.php">MENU</a></span><?php $metCompact=true;include __DIR__.'/instruments/met_clock.php';unset($metCompact);?></header>
 <main class="work"><nav class="controls" aria-label="FIDO display selector"><h2>DISPLAY SELECT</h2>
