@@ -79,6 +79,14 @@ function fidoMapSvg(array $estimates,array $paths,int $centerBody=1,int $width=1
  $v=rtccSub(rtccState($estimates[3])['p'],$c);
  $projection=rtccScale($xAxis,rtccDot($v,$xAxis));
  $yAxis=rtccSub($v,$projection);$yn=rtccNorm($yAxis);
+ if($yn<1.){
+  // If the CSM sits directly along Earth-Moon axis, use its tangential
+  // velocity to define the plotting plane rather than collapsing an XY
+  // orbit into an edge-on straight line.
+  $velocity=rtccState($estimates[3])['v'];
+  $yAxis=rtccSub($velocity,rtccScale($xAxis,rtccDot($velocity,$xAxis)));
+  $yn=rtccNorm($yAxis);
+ }
  if($yn<1.){$base=abs($xAxis[2])<.8?[0.,0.,1.]:[0.,1.,0.];$yAxis=rtccSub($base,rtccScale($xAxis,rtccDot($base,$xAxis)));$yn=rtccNorm($yAxis);}
  $yAxis=rtccScale($yAxis,1./max(1e-9,$yn));
  $project=static fn(array $p):array=>[rtccDot(rtccSub($p,$c),$xAxis),rtccDot(rtccSub($p,$c),$yAxis)];
