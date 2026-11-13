@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/../rtcc_rendezvous.php';
 // Display 007 intentionally uses FIDO's estimated relative positions, but
 // only renders the markers when the real radar/responder power and observed
 // range/range-rate registers indicate a valid linked ping.
