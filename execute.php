@@ -38,6 +38,7 @@ try{
  moonWorkerDiagnostic('Database connection established');
 if(PHP_SAPI!=='cli')moonSimRequireWorker();
 require_once __DIR__.'/physics.php';
+require_once __DIR__.'/docking_sensor.php';
 require_once __DIR__.'/reliability.php';
 require_once __DIR__.'/imu.php';
 require_once __DIR__.'/fuel_cells.php';
@@ -72,7 +73,12 @@ try {
    }
    $tickSections['dsky_before_ms']=(int)round((microtime(true)-$sectionStart)*1000);
    $sectionStart=microtime(true);
+   // Save the two pre-step positions for swept-contact detection.
+   $beforeDock=[];
+   $pre=$conn->query('SELECT * FROM objects WHERE id IN (3,6) ORDER BY id FOR UPDATE');
+   foreach($pre->fetch_all(MYSQLI_ASSOC) as $o)$beforeDock[(int)$o['id']]=$o;
    moonV2Physics($conn,1.0);
+   moonDockingTick($conn,$beforeDock,(int)$nextClock['tick']+1);
    $tickSections['physics_ms']=(int)round((microtime(true)-$sectionStart)*1000);
    $sectionStart=microtime(true);
    if(moonDskyInstalled($conn))moonDskyAfterPhysics($conn);
