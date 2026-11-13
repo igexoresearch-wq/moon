@@ -98,7 +98,6 @@ function moonDockFailComponents(mysqli $db,int $craft,int $count,int $tick,float
 /** Called AFTER the 1s physics integration in the SAME transaction. */
 function moonDockingTick(mysqli $db,array $before,int $tick):void {
  if(!isset($before[3],$before[6]))return;
- moonDockInstall($db);
  $now=[];
  $res=$db->query('SELECT * FROM objects WHERE id IN (3,6) ORDER BY id FOR UPDATE');
  foreach($res->fetch_all(MYSQLI_ASSOC) as $o)$now[(int)$o['id']]=$o;
