@@ -22,8 +22,21 @@ if(!isset($plan['burn1'],$plan['burn2'],$plan['dv1'],$plan['dv2'])){
  http_response_code(422);exit('INVALID SAVED MANEUVER');
 }
 try{
- $table=$conn->query("SHOW TABLES LIKE 'fido_saved_solutions'")->fetch_row();
- if(!$table)throw new DomainException('Install fido_saved_solutions.sql');
+ // Initialize saved-plan storage on first use, independent of whether
+ // the optional SQL install script was applied in phpMyAdmin.
+ $conn->query("CREATE TABLE IF NOT EXISTS fido_saved_solutions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  saved_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  estimate_tick BIGINT UNSIGNED NOT NULL,
+  planning_tick BIGINT UNSIGNED NOT NULL,
+  label VARCHAR(90) NOT NULL,
+  snapshot_json LONGTEXT NOT NULL,
+  plan_json LONGTEXT NOT NULL,
+  prediction_json LONGTEXT NOT NULL,
+  INDEX fido_saved_solution_epoch(estimate_tick)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+ $column=$conn->query("SHOW COLUMNS FROM fido_saved_solutions LIKE 'prediction_json'")->fetch_row();
+ if(!$column)$conn->query("ALTER TABLE fido_saved_solutions ADD COLUMN prediction_json LONGTEXT NULL");
  $epoch=(int)$data['estimate_tick'];$planning=(int)$data['planning_tick'];
  $label=sprintf('RTCC option %d / MET %03d:%02d',($option+1),intdiv($epoch,3600),intdiv($epoch%3600,60));
  $snapshot=json_encode($data['snapshot'],JSON_THROW_ON_ERROR);
