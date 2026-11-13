@@ -54,6 +54,9 @@ require_once __DIR__.'/dsky_runtime.php';
 $lock=$conn->query("SELECT GET_LOCK('moon_v2_execute',0) AS locked")->fetch_assoc();
 if((int)$lock['locked']!==1){moonWorkerDiagnostic('EXIT MySQL lock unavailable');exit;}
 moonWorkerDiagnostic('MySQL lock acquired; starting physics');
+// Schema installation uses DDL (implicit commit), and MUST precede all
+// one-second transaction boundaries rather than run inside the tick.
+moonDockInstall($conn);
 try {
  $started=microtime(true);
  for($tick=0;$tick<60;$tick++){
@@ -66,9 +69,9 @@ try {
   try{
    // Apply programmed actuator commands before the one-second physics update.
    // Both actions and motion share the same transaction and roll back together.
+   $nextClock=$conn->query('SELECT tick FROM sim_clock WHERE id=1 FOR UPDATE')->fetch_assoc();
+   if(!$nextClock)throw new RuntimeException('Simulation clock missing');
    if(moonDskyInstalled($conn)){
-    $nextClock=$conn->query('SELECT tick FROM sim_clock WHERE id=1 FOR UPDATE')->fetch_assoc();
-    if(!$nextClock)throw new RuntimeException('Simulation clock missing');
     moonDskyBeforePhysics($conn,(int)$nextClock['tick']+1);
    }
    $tickSections['dsky_before_ms']=(int)round((microtime(true)-$sectionStart)*1000);
