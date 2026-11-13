@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fido_los.php';
 /**
  * Independent FIDO orbit estimate. Uses its OWN ground ephemeris and state;
  * never reads navigation_states or G-meter acceleration. Simulated ground
@@ -108,7 +109,14 @@ function moonFidoNavigationTick(mysqli $db,int $tick):void {
    [(float)$r['vx'],(float)$r['vy'],(float)$r['vz']],[$body[1],$body[2]],1.);
   $trackingTick=$r['last_tracking_tick']===null?null:(int)$r['last_tracking_tick'];
   $status='COAST PREDICT';
-  if($tick%60===0){
+  // Telemetry loss is evaluated on the predicted ground-estimate
+  // geometry BEFORE obtaining a new tracking measurement. During lunar
+  // occultation FIDO only propagates its last estimate; real craft truth
+  // must not leak into the solution at the planned 60-second fix.
+  $earthPos=[(float)$body[1]['x'],(float)$body[1]['y'],(float)$body[1]['z']];
+  $occulted=fidoMoonOccults($earthPos,$moonP,$p,1737400.);
+  if($occulted)$status='LUNAR OCCULTATION / COAST';
+  elseif($tick%60===0){
    $obs=moonFidoTrackingObservation($db,$craft,$tick);
    $p=[$obs['x'],$obs['y'],$obs['z']];$v=[$obs['vx'],$obs['vy'],$obs['vz']];
    $trackingTick=$tick;$status='TRACKING FIX';
