@@ -28,7 +28,8 @@ Projection uses the FIDO ground-state epoch, including Earth and moving Moon gra
  'ORBIT PERIOD SEC'=>$path['period_s']===null?'---':fidoN($path['period_s'],1),
  'PROJECTED DURATION SEC'=>fidoN($path['horizon_s'],0),
  'ENDING CONDITION'=>$path['termination'],
- 'GROUND TRACKING STATUS'=>$estimates[$id]['status']
+ 'GROUND TRACKING STATUS'=>$estimates[$id]['status'],
+ 'EARTH LINE OF SIGHT'=>fidoEstimatedLunarOccultation($estimates[$id],$estimates[1],$estimates[2])?'LUNAR BLACKOUT':'CLEAR (ESTIMATED)'
 ]);?></section>
 <?php endforeach;?>
 </div>
