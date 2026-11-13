@@ -67,7 +67,7 @@ function fidoMapElements(array $craft,array $body):array {
  return ['bound'=>$bound,'period_s'=>$bound?2.*M_PI*sqrt($axis**3/$mu):null];
 }
 /** Simplify into projected SVG paths without exposing inertial XYZ as UI. */
-function fidoMapSvg(array $estimates,array $paths,int $centerBody=1,int $width=1240,int $height=570):string {
+function fidoMapSvg(array $estimates,array $paths,int $centerBody=1,int $width=1240,int $height=570,bool $systemView=false):string {
  $center=$estimates[$centerBody];
  $c=rtccState($center)['p'];
  $earth=rtccState($estimates[1])['p'];$moon=rtccState($estimates[2])['p'];
@@ -91,7 +91,7 @@ function fidoMapSvg(array $estimates,array $paths,int $centerBody=1,int $width=1
   }
  }
  $points=array_merge(...array_values($draw));
- foreach([1,2] as $id)if($id===$centerBody)$points[]=$project(rtccState($estimates[$id])['p']);
+ foreach([1,2] as $id)if($id===$centerBody||$systemView)$points[]=$project(rtccState($estimates[$id])['p']);
  $minX=min(array_column($points,0));$maxX=max(array_column($points,0));
  $minY=min(array_column($points,1));$maxY=max(array_column($points,1));
  $spanX=max(1.,$maxX-$minX);$spanY=max(1.,$maxY-$minY);
@@ -105,6 +105,10 @@ function fidoMapSvg(array $estimates,array $paths,int $centerBody=1,int $width=1
  $rPx=max(1.,$radius*$scale);
  $svg.='<circle cx="'.round($bodyCenter[0],2).'" cy="'.round($bodyCenter[1],2).'" r="'.round($rPx,2).'" fill="#274f73" stroke="#71abc7" stroke-width="1.5"/>';
  $svg.='<text x="'.round($bodyCenter[0]+$rPx+9,1).'" y="'.round($bodyCenter[1],1).'" fill="#bbd8e5" font-family="monospace" font-size="14">'.$esc($center['name']).'</text>';
+ if($systemView&&$centerBody===1){
+  $moonPos=$map($project($moon));$moonR=max(1.,(float)$estimates[2]['radius_length']*$scale);
+  $svg.='<circle cx="'.round($moonPos[0],2).'" cy="'.round($moonPos[1],2).'" r="'.round($moonR,2).'" fill="#aaa8a0" stroke="#d3d6d2"/><text x="'.round($moonPos[0]+8,2).'" y="'.round($moonPos[1]-8,2).'" fill="#cdd5db" font-size="12">MOON</text>';
+ }
  foreach($draw as $id=>$list){
   $pts=[];foreach($list as $q){[$x,$y]=$map($q);$pts[]=round($x,2).','.round($y,2);}
   if(count($pts)<2)continue;
