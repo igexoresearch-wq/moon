@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/common.php';
+require_once __DIR__.'/fido_plan_trace.php';
 header('Cache-Control: no-store');
 if(session_status()!==PHP_SESSION_ACTIVE)session_start();
 if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit('SAVE REQUIRES POST');}
@@ -27,8 +28,9 @@ try{
  $label=sprintf('RTCC option %d / MET %03d:%02d',($option+1),intdiv($epoch,3600),intdiv($epoch%3600,60));
  $snapshot=json_encode($data['snapshot'],JSON_THROW_ON_ERROR);
  $planJson=json_encode($plan,JSON_THROW_ON_ERROR);
- $q=$conn->prepare('INSERT INTO fido_saved_solutions(estimate_tick,planning_tick,label,snapshot_json,plan_json) VALUES(?,?,?,?,?)');
- $q->bind_param('iisss',$epoch,$planning,$label,$snapshot,$planJson);$q->execute();
+ $predicted=json_encode(fidoPlanTrace($data['snapshot'],$plan,$planning),JSON_THROW_ON_ERROR);
+ $q=$conn->prepare('INSERT INTO fido_saved_solutions(estimate_tick,planning_tick,label,snapshot_json,plan_json,prediction_json) VALUES(?,?,?,?,?,?)');
+ $q->bind_param('iissss',$epoch,$planning,$label,$snapshot,$planJson,$predicted);$q->execute();
  $id=(int)$conn->insert_id;
  header('Location: fido_console.php?display=flight_compare&solution='.$id,true,303);
 }catch(Throwable $e){
