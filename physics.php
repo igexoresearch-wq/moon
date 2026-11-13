@@ -77,7 +77,13 @@ function moonV2Physics(mysqli $db,float $dt=1.0):void {
    $forward=[cos($pitch)*cos($yaw),cos($pitch)*sin($yaw),sin($pitch)];
    $childPosition=[];
    for($k=0;$k<3;$k++)$childPosition[$k]=$up['p'][$k]-$distance*$forward[$k];
-   $updates[$id]=['p'=>$childPosition,'v'=>$up['v'],'land'=>$up['land'],'landOffset'=>$up['landOffset'],'att'=>$up['att']];$changed=true;
+   // After nose-to-nose CM/LM docking the LM faces *toward* the CM,
+   // not along the CM's forward axis. Keep the two port axes opposed.
+   $att=$up['att'];
+   if($id===6&&$parent===3&&(float)$o['offset_distance']<0.){
+    $att=[-$up['att'][0],$up['att'][1],$up['att'][2]+180.];
+   }
+   $updates[$id]=['p'=>$childPosition,'v'=>$up['v'],'land'=>$up['land'],'landOffset'=>$up['landOffset'],'att'=>$att];$changed=true;
   }
   if(!$changed)break;
  }
