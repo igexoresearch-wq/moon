@@ -13,11 +13,17 @@ if(!$entry){http_response_code(404);exit('Display unavailable');}
 $file=(string)$entry['page_file'];
 if(!preg_match('/\A[a-z][a-z0-9_]*\.php\z/i',$file)||str_starts_with($file,'_')||!is_file(__DIR__.'/fido_pages/'.$file)){http_response_code(404);exit('Display module unavailable');}
 try {
- $conn->begin_transaction(MYSQLI_TRANS_START_READ_ONLY);
- $ground=fidoGroundSnapshot($conn);
- $estimates=$ground['estimates'];$groundTick=$ground['tick'];
- $conn->commit();
- $groundError=null;
+ if($key==='flight_compare'){
+  // This display must remain usable with an archived saved solution even
+  // when current real-time tracking is stale or unavailable.
+  $estimates=[];$groundTick=null;$groundError=null;
+ }else{
+  $conn->begin_transaction(MYSQLI_TRANS_START_READ_ONLY);
+  $ground=fidoGroundSnapshot($conn);
+  $estimates=$ground['estimates'];$groundTick=$ground['tick'];
+  $conn->commit();
+  $groundError=null;
+ }
 } catch(Throwable $exception) {
  try{$conn->rollback();}catch(Throwable $ignored){}
  error_log('FIDO estimated state: '.$exception->getMessage());
