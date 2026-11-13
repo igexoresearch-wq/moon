@@ -36,9 +36,10 @@ $relative=rtccSub(rtccState($lm)['p'],rtccState($cm)['p']);
 $estimateDistance=rtccNorm($relative);
 $extent=fidoProximityScale(max($reportedRange,$estimateDistance));
 $scale=940./$extent;$x1=170.;$y1=260.;
-$x2=$x1+($relative[0]/max($estimateDistance,1.))*min(940.,$estimateDistance*$scale);
-$y2=$y1-($relative[1]/max($estimateDistance,1.))*min(160.,abs($relative[1])*$scale);
-$distanceShown=hypot($x2-$x1,$y2-$y1);
+// This is a range plot, NOT a bearing solution: put both craft on the
+// range axis so the labeled kilometer ticks remain physically accurate.
+$x2=$x1+min(940.,$estimateDistance*$scale);
+$y2=$y1;
 ?>
 <svg viewBox="0 0 1240 500" width="100%" role="img" aria-label="Estimated distance between CSM and LM scaled to current radar">
 <rect width="1240" height="500" fill="#0c1723"/>
@@ -60,5 +61,5 @@ $distanceShown=hypot($x2-$x1,$y2-$y1);
  'ESTIMATED RANGE M'=>fidoN($estimateDistance,1),
  'LINEAR DISPLAY SCALE M'=>fidoN($extent,0),
  'ESTIMATE MET TICK'=>(string)$groundTick]);?></section></div>
-<p class="fd-note">Screen positions derive from FIDO estimates; radar only authorizes the displayed contact and supplies observed range/range-rate. A projected XY separation is not a full 3D bearing. When closer, the distance scale automatically tightens.</p>
+<p class="fd-note">Screen positions derive from FIDO estimates; radar only authorizes the displayed contact and supplies observed range/range-rate. This is a 1D range plot, not an angular/bearing solution. When closer, the distance scale automatically tightens.</p>
 <?php endif;?>
