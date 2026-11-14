@@ -58,6 +58,7 @@ moonWorkerDiagnostic('MySQL lock acquired; starting physics');
 // Schema installation uses DDL (implicit commit), and MUST precede all
 // one-second transaction boundaries rather than run inside the tick.
 moonDockInstall($conn);
+moonTerminalInstall($conn);
 try {
  $started=microtime(true);
  for($tick=0;$tick<60;$tick++){
