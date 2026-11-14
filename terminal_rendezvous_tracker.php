@@ -17,6 +17,11 @@ function moonTerminalInstall(mysqli $db):void {
   FOREIGN KEY(craft_id) REFERENCES objects(id)
  ) ENGINE=InnoDB");
  $db->query('INSERT IGNORE INTO terminal_rendezvous(craft_id) VALUES(3),(6)');
+ $db->query("INSERT IGNORE INTO console_instruments(console_id,file_name,pos_x,pos_y)
+ VALUES ('cmc','terminal_rendezvous.php',2020,270),
+ ('cmp','terminal_rendezvous.php',2020,270),
+ ('lmc','terminal_rendezvous.php',2020,270),
+ ('lmp','terminal_rendezvous.php',2020,270)");
  $column=$db->query("SHOW COLUMNS FROM dsky_programs LIKE 'operation'")->fetch_assoc();
  if(!$column)throw new RuntimeException('DSKY programs not installed for P36');
  if(!str_contains((string)$column['Type'],"'terminal_match'")){
