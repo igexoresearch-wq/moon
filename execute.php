@@ -49,6 +49,7 @@ require_once __DIR__.'/delta_v.php';
 require_once __DIR__.'/navigation.php';
 require_once __DIR__.'/fido_navigation.php';
 require_once __DIR__.'/dsky_runtime.php';
+require_once __DIR__.'/terminal_rendezvous_tracker.php';
 // Invoke once per minute from cron; runs up to 60 simulated one-second ticks.
 // Prevent concurrent workers via a MySQL advisory lock.
 $lock=$conn->query("SELECT GET_LOCK('moon_v2_execute',0) AS locked")->fetch_assoc();
@@ -151,6 +152,23 @@ try {
      if(!isset($groundNavFailureLogged)){
       error_log('Moon optional FIDO navigation failed: '.$groundError->getMessage());
       $groundNavFailureLogged=true;
+     }
+    }
+   }
+   // Terminal rendezvous tracker samples radar AFTER navigation + IMU.
+   // If one sensor is unavailable, hold P36 on the last estimate rather
+   // than manufacturing another spacecraft's true inertial state.
+   if($conn->query("SHOW TABLES LIKE 'terminal_rendezvous'")->fetch_row()){
+    $conn->query('SAVEPOINT moon_terminal_tracking');
+    try{
+     moonTerminalTrackingTick($conn,(int)$clock['tick']+1);
+     $conn->query('RELEASE SAVEPOINT moon_terminal_tracking');
+    }catch(Throwable $terminalError){
+     $conn->query('ROLLBACK TO SAVEPOINT moon_terminal_tracking');
+     $conn->query('RELEASE SAVEPOINT moon_terminal_tracking');
+     if(!isset($terminalTrackingFailed)){
+      error_log('Moon terminal radar tracker: '.$terminalError->getMessage());
+      $terminalTrackingFailed=true;
      }
     }
    }
