@@ -70,6 +70,13 @@ function moonTerminalP36Tick(mysqli $db,int $craft,int $slot,array $register,int
   moonDskyImuHold($db,$craft,$slot,'IMU UNAVAILABLE');return;
  }
  $basis=moonTerminalBasis((float)$imu['pitch_deg'],(float)$imu['yaw_deg'],(float)$imu['roll_deg']);
+ // Warn rather than claiming impossible braking can be completed in
+ // time. P36 retains limited authority at this range.
+ $accel=(float)$rcs['thrust_n']/max(1.,(float)$object['dry_mass']+($craft===3?(float)$sm['dry_mass']:0.)+(float)$rcs['fuel_kg']+(float)$rcs['oxidizer_kg']);
+ $brakingDistance=$speed*$speed/(2.*max($accel,1e-9));
+ if($brakingDistance>max(0.,$range-$hold)&&$speed>.4){
+  moonDskyImuHold($db,$craft,$slot,sprintf('BRAKING DIST %.0f M / RANGE %.0f M',$brakingDistance,$range));
+ }
  $desired=moonTerminalDemand($r,$v,$hold);
  $components=[
   ['axis'=>'forward','vec'=>$basis[0]],
@@ -106,7 +113,10 @@ function moonTerminalP36Tick(mysqli $db,int $craft,int $slot,array $register,int
  $mass=max(1.,$mass);
  // Pulse duration proportional to estimated error but never more than the
  // hardware's discrete pulse limit. Actuators change velocity physically.
- $dt=min($maxPulse,$amplitude*$mass/$thrust);
+ // A continuous, one-second terminal pulse is allowed; the .1s
+ // manual pulse setting is a tap length, not a physical thrust limit.
+ // Cap by this physics second and never impulse more than commanded.
+ $dt=min(1.,$amplitude*$mass/$thrust);
  if($dt<.0001){moonDskyImuHold($db,$craft,$slot,'PULSE BELOW RESOLUTION');return;}
  $consumed=$thrust*$dt/($isp*9.80665);
  if((float)$rcs['fuel_kg']<$consumed*.4||(float)$rcs['oxidizer_kg']<$consumed*.6){
