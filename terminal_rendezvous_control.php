@@ -74,9 +74,7 @@ function moonTerminalP36Tick(mysqli $db,int $craft,int $slot,array $register,int
  // time. P36 retains limited authority at this range.
  $accel=(float)$rcs['thrust_n']/max(1.,(float)$object['dry_mass']+($craft===3?(float)$sm['dry_mass']:0.)+(float)$rcs['fuel_kg']+(float)$rcs['oxidizer_kg']);
  $brakingDistance=$speed*$speed/(2.*max($accel,1e-9));
- if($brakingDistance>max(0.,$range-$hold)&&$speed>.4){
-  moonDskyImuHold($db,$craft,$slot,sprintf('BRAKING DIST %.0f M / RANGE %.0f M',$brakingDistance,$range));
- }
+ $brakingRisk=$brakingDistance>max(0.,$range-$hold)&&$speed>.4;
  $desired=moonTerminalDemand($r,$v,$hold);
  $components=[
   ['axis'=>'forward','vec'=>$basis[0]],
@@ -136,5 +134,5 @@ function moonTerminalP36Tick(mysqli $db,int $craft,int $slot,array $register,int
  $rid=(int)$rcs['id'];
  $q=$db->prepare('UPDATE rcs SET fuel_kg=?,oxidizer_kg=? WHERE id=?');
  $q->bind_param('ddi',$fuel,$ox,$rid);$q->execute();
- moonDskyImuHold($db,$craft,$slot,sprintf('P36 %.1f M / %.2f MPS / %s',$range,$speed,$label));
+ moonDskyImuHold($db,$craft,$slot,sprintf('P36 %.0fM / %.2fMPS / %s%s',$range,$speed,$label,$brakingRisk?' / BRAKING DIST EXCESS':''));
 }
