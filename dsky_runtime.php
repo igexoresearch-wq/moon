@@ -4,6 +4,7 @@ require_once __DIR__.'/dsky_rcs.php';
 require_once __DIR__.'/propulsion.php';
 require_once __DIR__.'/star_alignment.php';
 require_once __DIR__.'/dsky_rendezvous.php';
+require_once __DIR__.'/terminal_rendezvous_control.php';
 function moonDskyInstalled(mysqli $db):bool {
  static $available=null;
  if($available!==null)return $available;
@@ -192,8 +193,8 @@ function moonDskyBeforePhysics(mysqli $db,int $nextTick):void {
  foreach($rows as $r){
   $craft=(int)$r['craft_id'];$slot=(int)$r['register_no'];$kind=(string)$r['operation'];
   if(!in_array($craft,[3,6],true)){moonDskyFailure($db,$craft,$slot,'INVALID COMPUTER');continue;}
-  if(!in_array($kind,['burn_seconds','attitude_target','platform_align','timed_delta_v','timed_rcs_dv'],true)){moonDskyFailure($db,$craft,$slot,'INVALID OPERATION');continue;}
-  $group=in_array($kind,['burn_seconds','timed_delta_v','timed_rcs_dv'],true)?'engine':($kind==='platform_align'?'alignment':'attitude');
+  if(!in_array($kind,['burn_seconds','attitude_target','platform_align','timed_delta_v','timed_rcs_dv','terminal_match'],true)){moonDskyFailure($db,$craft,$slot,'INVALID OPERATION');continue;}
+  $group=in_array($kind,['burn_seconds','timed_delta_v','timed_rcs_dv','terminal_match'],true)?'engine':($kind==='platform_align'?'alignment':'attitude');
   if(isset($active[$craft][$group]))continue;
   $active[$craft][$group]=true;
   if($r['state']==='queued'){
@@ -201,6 +202,10 @@ function moonDskyBeforePhysics(mysqli $db,int $nextTick):void {
    $q->bind_param('iii',$nextTick,$craft,$slot);$q->execute();
   }
   $config=moonDskyConfig($r);
+  if($kind==='terminal_match'){
+   moonTerminalP36Tick($db,$craft,$slot,$r,$nextTick);
+   continue;
+  }
   if(in_array($kind,['timed_delta_v','timed_rcs_dv'],true)){
    moonDvBeforePhysics($db,$craft,$slot,$r,$nextTick,$kind==='timed_rcs_dv');
    continue;
