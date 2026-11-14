@@ -131,7 +131,7 @@ function moonTerminalTrackingTick(mysqli $db,int $tick):void {
   $pos=$estimate['r'];$vel=$estimate['v'];
   $target=[(float)$own['x']+$pos[0],(float)$own['y']+$pos[1],(float)$own['z']+$pos[2]];
   $samples=$estimate['samples'];$status=$estimate['status'];
-  $save->bind_param('iidddddddddddsi',$tick,$samples,
+  $save->bind_param('iiddddddddddsi',$tick,$samples,
    $pos[0],$pos[1],$pos[2],$vel[0],$vel[1],$vel[2],
    $target[0],$target[1],$target[2],$range,$status,$craft);
   $save->execute();
