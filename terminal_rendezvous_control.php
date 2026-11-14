@@ -33,7 +33,7 @@ function moonTerminalP36Tick(mysqli $db,int $craft,int $slot,array $register,int
  $r=[(float)$e['rx'],(float)$e['ry'],(float)$e['rz']];
  $v=[(float)$e['vx'],(float)$e['vy'],(float)$e['vz']];
  $speed=moonTerminalNorm($v);
- if($range<8.){
+ if($range<8.&&$speed<.12){
   moonDskyImuHold($db,$craft,$slot,'WITHIN 8 M / MANUAL DOCKING');
   $q=$db->prepare("UPDATE dsky_registers SET state='complete',message='MANUAL DOCKING / FINAL APPROACH' WHERE craft_id=? AND register_no=?");
   $q->bind_param('ii',$craft,$slot);$q->execute();return;
